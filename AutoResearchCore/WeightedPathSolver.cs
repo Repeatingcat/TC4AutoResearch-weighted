@@ -18,7 +18,7 @@ public static class WeightedPathSolver
         IReadOnlyList<Hex> hexes,
         IReadOnlyDictionary<Hex, string> targets,
         IReadOnlyDictionary<string, List<string>> aspectMap,
-        int timeBudgetMilliseconds = 2000)
+        int timeBudgetMilliseconds = 750)
     {
         var stopwatch = Stopwatch.StartNew();
         if (targets.Count != 2 || hexes.Count == 0 || hexes.Count > 64)

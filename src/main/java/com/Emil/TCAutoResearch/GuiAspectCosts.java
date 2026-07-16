@@ -120,8 +120,9 @@ public class GuiAspectCosts extends GuiScreen {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
         int center = width / 2;
-        int left = center - 180;
-        int right = center + 180;
+        int panelHalfWidth = Math.min(180, width / 2 - 8);
+        int left = center - panelHalfWidth;
+        int right = center + panelHalfWidth;
         drawRect(left, 8, right, height - 58, 0xD0101010);
         drawCenteredString(fontRendererObj, "\u8981\u7d20\u6743\u91cd", center, 14, 0xFFFFFF);
         fontRendererObj.drawString("\u641c\u7d22", center - 128, 35, 0xA0A0A0);
@@ -183,7 +184,8 @@ public class GuiAspectCosts extends GuiScreen {
     private void rebuildCostFields() {
         costFields.clear();
         int center = width / 2;
-        int right = center + Math.min(180, width / 2 - 8);
+        int panelHalfWidth = Math.min(180, width / 2 - 8);
+        int right = center + panelHalfWidth;
         int from = page * rowsPerPage;
         int to = Math.min(from + rowsPerPage, filteredTags.size());
         int y = ROW_START;

@@ -96,6 +96,8 @@ namespace AutoResearch
 
     internal class Class1
     {
+        private const int CandidateLimit = 256;
+
         private static Dictionary<string, (string, string)> AllAspect = new();
         private static Dictionary<Hex, string> NoteHex = new();
         private static List<Hex> Hexes = new();
@@ -265,7 +267,7 @@ namespace AutoResearch
                     TryPathAspect[topHex.Key].Add(topHex.Value);
                     TryPathAspect[bottomHex.Key].Add(bottomHex.Value);
 
-                    Dictionary<Hex, string>? SolverM = GetPossibleSolve(GetPossibleMoves(TryPathAspect, new Dictionary<Hex, string>(), 0).ToArray());
+                    Dictionary<Hex, string>? SolverM = GetPossibleSolve(GetPossibleMoves(TryPathAspect, new Dictionary<Hex, string>(), 0).Take(CandidateLimit).ToArray());
                     if (SolverM.Count == 0)
                     {
                         var linksecond = GetHexRing(center, 2);
@@ -367,7 +369,7 @@ namespace AutoResearch
                                     } while (true);
                                     if (LinkCheck)
                                     {
-                                        var _Solver = GetPossibleMoves(_TryPathAspect, new Dictionary<Hex, string>(), 0).ToArray();
+                                        var _Solver = GetPossibleMoves(_TryPathAspect, new Dictionary<Hex, string>(), 0).Take(CandidateLimit).ToArray();
                                         if (_Solver.Length == 0)
                                         {
                                             var FirstPointNeighbor = _TryPathAspect.First().Key.GetNeighbors().ToArray();
@@ -385,7 +387,7 @@ namespace AutoResearch
                                                         { CrossPoint,[]},
                                                         { Last.Key,[Last.Value]},
                                                     };
-                                                        _Solver = GetPossibleMoves(_TryPathAspect, new Dictionary<Hex, string>(), 0).ToArray();
+                                                        _Solver = GetPossibleMoves(_TryPathAspect, new Dictionary<Hex, string>(), 0).Take(CandidateLimit).ToArray();
                                                         _SolverS.Add((First.Key, Last.Key), _Solver);
                                                     }
                                                 }
@@ -403,7 +405,7 @@ namespace AutoResearch
                                                         { SubSecondPoint,[]},
                                                         { Last.Key,[Last.Value]},
                                                     };
-                                                    _Solver = GetPossibleMoves(_TryPathAspect, new Dictionary<Hex, string>(), 0).ToArray();
+                                                    _Solver = GetPossibleMoves(_TryPathAspect, new Dictionary<Hex, string>(), 0).Take(CandidateLimit).ToArray();
                                                     _SolverS.Add((First.Key, Last.Key), _Solver);
                                                 }
                                             }
@@ -498,7 +500,7 @@ namespace AutoResearch
                             }
                             TryPathAspect[maxPair.A.Key].Add(maxPair.A.Value);
                             TryPathAspect[maxPair.B.Key].Add(maxPair.B.Value);
-                            Solver = GetPossibleSolve(GetPossibleMoves(TryPathAspect, new Dictionary<Hex, string>(), 0).ToArray());
+                            Solver = GetPossibleSolve(GetPossibleMoves(TryPathAspect, new Dictionary<Hex, string>(), 0).Take(CandidateLimit).ToArray());
                             if (Solver.Count != 0)
                             {
                                 Solves.Add(Solver);
@@ -527,7 +529,7 @@ namespace AutoResearch
                         }
                         TryPathAspect[maxPair.A.Key].Add(maxPair.A.Value);
                         TryPathAspect[maxPair.B.Key].Add(maxPair.B.Value);
-                        Solver = GetPossibleSolve(GetPossibleMoves(TryPathAspect, new Dictionary<Hex, string>(), 0).ToArray());
+                        Solver = GetPossibleSolve(GetPossibleMoves(TryPathAspect, new Dictionary<Hex, string>(), 0).Take(CandidateLimit).ToArray());
                         if (Solver.Count != 0)
                         {
                             Solves.Add(Solver);
@@ -580,7 +582,7 @@ namespace AutoResearch
                             TryPathAspect[Second.Key].Add(Second.Value);
                             int ReTryCount = 0;
                         ReTry:
-                            var SubPossible = GetPossibleMoves(TryPathAspect, new Dictionary<Hex, string>(), 0).ToArray();
+                            var SubPossible = GetPossibleMoves(TryPathAspect, new Dictionary<Hex, string>(), 0).Take(CandidateLimit).ToArray();
                             if (SubPossible.Length == 0)
                             {
                                 ReTryCount += 1;
@@ -693,7 +695,7 @@ namespace AutoResearch
                 try
                 {
                     var allStrategies = Task.WhenAll(T1, T2, T3);
-                    var completed = await Task.WhenAny(allStrategies, Task.Delay(2500));
+                    var completed = await Task.WhenAny(allStrategies, Task.Delay(500));
                     if (completed == allStrategies)
                         await allStrategies;
                     else
@@ -987,7 +989,7 @@ namespace AutoResearch
 
                     TryPathAspect.Last().Value.Add(OrderList2);
 
-                    var GetSolve = GetPossibleMoves(TryPathAspect, new Dictionary<Hex, string>(), 0).ToArray();
+                    var GetSolve = GetPossibleMoves(TryPathAspect, new Dictionary<Hex, string>(), 0).Take(CandidateLimit).ToArray();
                     if (GetSolve.Length == 0)
                     {
                         Fail.Add(TryPathAspect);
@@ -1060,7 +1062,7 @@ namespace AutoResearch
                             }
                             TempAspect.Add(newHex, anyHex.Value);
                             TempAspect.Add(anyHex.Key, anyHex.Value);
-                            var SubPossible = GetPossibleMoves(TempAspect, new Dictionary<Hex, string>(), 0).ToArray();
+                            var SubPossible = GetPossibleMoves(TempAspect, new Dictionary<Hex, string>(), 0).Take(CandidateLimit).ToArray();
                             if (SubPossible.Length != 0)
                             {
                                 TempWannaPath.Add(((TryPathAspect.First().Key.ToString(), TryPathAspect.Last().ToString()), SubPossible.First()));
