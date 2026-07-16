@@ -30,14 +30,12 @@ public class GuiAspectCosts extends GuiScreen {
     private final List<String> filteredTags = new ArrayList<>();
     private final List<GuiTextField> costFields = new ArrayList<>();
     private GuiTextField searchField;
-    private boolean inventoryPriority;
     private int page;
     private int rowsPerPage;
 
     public GuiAspectCosts(GuiScreen parent) {
         this.parent = parent;
         pendingCosts.putAll(Config.getAspectCostsSnapshot());
-        inventoryPriority = Config.InventoryPriority;
     }
 
     @Override
@@ -56,7 +54,6 @@ public class GuiAspectCosts extends GuiScreen {
         buttonList.add(new GuiButton(2, center + 5, height - 28, 140, 20, "\u6062\u590d\u9ed8\u8ba4"));
         buttonList.add(new GuiButton(3, center - 145, height - 52, 70, 20, "\u4e0a\u4e00\u9875"));
         buttonList.add(new GuiButton(4, center + 75, height - 52, 70, 20, "\u4e0b\u4e00\u9875"));
-        buttonList.add(new GuiButton(5, center - 70, height - 52, 140, 20, modeButtonText()));
         applyFilter();
     }
 
@@ -75,7 +72,7 @@ public class GuiAspectCosts extends GuiScreen {
     protected void actionPerformed(GuiButton button) {
         if (button.id == 0) {
             commitVisibleFields();
-            Config.saveAspectCosts(pendingCosts, inventoryPriority);
+            Config.saveAspectCosts(pendingCosts);
             mc.displayGuiScreen(parent);
         } else if (button.id == 1) {
             mc.displayGuiScreen(parent);
@@ -90,9 +87,6 @@ public class GuiAspectCosts extends GuiScreen {
             commitVisibleFields();
             page++;
             rebuildCostFields();
-        } else if (button.id == 5) {
-            inventoryPriority = !inventoryPriority;
-            button.displayString = modeButtonText();
         }
     }
 
@@ -137,9 +131,7 @@ public class GuiAspectCosts extends GuiScreen {
         searchField.drawTextBox();
         drawCenteredString(
             fontRendererObj,
-            inventoryPriority
-                ? "\u4f18\u5148\u4f7f\u7528\u5e93\u5b58\u5145\u8db3\u7684\u8981\u7d20\uff0c\u518d\u6bd4\u8f83\u6743\u91cd"
-                : "\u6743\u91cd\u8d8a\u9ad8\uff0c\u5728\u89e3\u7b14\u8bb0\u65f6\u8d8a\u4e0d\u4f1a\u88ab\u4f7f\u7528\u5230",
+            "\u6743\u91cd\u8d8a\u9ad8\uff0c\u5728\u89e3\u7b14\u8bb0\u65f6\u8d8a\u4e0d\u4f1a\u88ab\u4f7f\u7528\u5230",
             center,
             53,
             0xD0B878);
@@ -240,7 +232,4 @@ public class GuiAspectCosts extends GuiScreen {
         return AspectNames.getDisplayName(tag);
     }
 
-    private String modeButtonText() {
-        return inventoryPriority ? "\u6a21\u5f0f: \u5e93\u5b58\u4f18\u5148" : "\u6a21\u5f0f: \u6743\u91cd\u4f18\u5148";
-    }
 }

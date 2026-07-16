@@ -49,6 +49,7 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
     GuiButtonExt debugButton;
     GuiButtonExt costsButton;
     GuiButtonExt batchButton;
+    GuiButtonExt solverModeButton;
 
     GuiTextField inputField;
     SetAspectButton confirmButton;
@@ -89,6 +90,13 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
         this.buttonList.add(button4);
 
         int sideButtonX = Math.min(super.guiLeft + super.xSize, this.width - 80);
+        solverModeButton = new GuiButtonExt(
+            109,
+            sideButtonX,
+            super.guiTop + 255 / 2 - 50,
+            80,
+            25,
+            solverModeButtonText());
         debugButton = new GuiButtonExt(
             106,
             sideButtonX,
@@ -110,6 +118,7 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
             80,
             25,
             BatchResearchController.getButtonText());
+        this.buttonList.add(solverModeButton);
         this.buttonList.add(debugButton);
         this.buttonList.add(costsButton);
         this.buttonList.add(batchButton);
@@ -185,6 +194,10 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
                     } else mc.thePlayer.addChatMessage(new ChatComponentText("笔记重新解锁失败,无上次解锁数据"));
                 } else mc.thePlayer.addChatMessage(new ChatComponentText("笔记重新解锁失败,笔记已经解锁"));
             }
+        } else if (Targetbutton.id == 109) {
+            Config.InventoryPriority = !Config.InventoryPriority;
+            Config.SaveConfiguration();
+            solverModeButton.displayString = solverModeButtonText();
         } else if (Targetbutton.id == 106) {
             mc.displayGuiScreen(new GuiResearchDebug(this));
         } else if (Targetbutton.id == 107) {
@@ -312,6 +325,10 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
                 this.tileEntity.bonusAspects.getAmount(aspect1) > 0,
                 this.tileEntity.bonusAspects.getAmount(aspect2) > 0,
                 true));
+    }
+
+    private String solverModeButtonText() {
+        return Config.InventoryPriority ? "\u6a21\u5f0f:\u5e93\u5b58\u4f18\u5148" : "\u6a21\u5f0f:\u6743\u91cd\u4f18\u5148";
     }
 
 }

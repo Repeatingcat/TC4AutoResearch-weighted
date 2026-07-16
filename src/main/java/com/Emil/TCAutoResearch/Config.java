@@ -83,16 +83,13 @@ public class Config {
         return cost == null ? UNKNOWN_ASPECT_COST : cost;
     }
 
-    public static synchronized void saveAspectCosts(Map<String, Integer> costs, boolean inventoryPriority) {
+    public static synchronized void saveAspectCosts(Map<String, Integer> costs) {
         for (Map.Entry<String, Integer> entry : costs.entrySet()) {
             int cost = Math.max(1, entry.getValue());
             config.get(ASPECT_COST_CATEGORY, entry.getKey(), cost)
                 .set(cost);
             AspectCosts.put(entry.getKey(), cost);
         }
-        InventoryPriority = inventoryPriority;
-        config.get(Configuration.CATEGORY_GENERAL, "InventoryPriority", false)
-            .set(InventoryPriority);
         config.save();
     }
 
