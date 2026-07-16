@@ -48,6 +48,7 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
     GuiButtonExt button4;
     GuiButtonExt debugButton;
     GuiButtonExt costsButton;
+    GuiButtonExt batchButton;
 
     GuiTextField inputField;
     SetAspectButton confirmButton;
@@ -102,8 +103,16 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
             80,
             25,
             "\u8981\u7d20\u6743\u91cd");
+        batchButton = new GuiButtonExt(
+            108,
+            sideButtonX,
+            super.guiTop + 255 / 2 + 25,
+            80,
+            25,
+            BatchResearchController.getButtonText());
         this.buttonList.add(debugButton);
         this.buttonList.add(costsButton);
+        this.buttonList.add(batchButton);
 
         this.inputField = new GuiTextField(this.fontRendererObj, 0, 0, 25, 10);
         this.inputField.setMaxStringLength(50);
@@ -180,12 +189,29 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
             mc.displayGuiScreen(new GuiResearchDebug(this));
         } else if (Targetbutton.id == 107) {
             mc.displayGuiScreen(new GuiAspectCosts(this));
+        } else if (Targetbutton.id == 108) {
+            if (BatchResearchController.isRunning()) {
+                BatchResearchController.stopByUser(player);
+            } else {
+                if (!Config.AutoResearch) {
+                    Config.AutoResearch = true;
+                    Config.SaveConfiguration();
+                    button2.displayString = "\u81ea\u52a8\u89e3\u9501\u7b14\u8bb0:\u5f00\u542f";
+                    button3.visible = false;
+                    button4.visible = false;
+                    autoResearch = new AutoResearch(player, this.mc, this);
+                    autoResearch.start();
+                }
+                BatchResearchController.start(mc, player, this.inventorySlots);
+            }
+            batchButton.displayString = BatchResearchController.getButtonText();
         } else mc.thePlayer.addChatMessage(new ChatComponentText("笔记重新解锁失败,没有放入笔记"));
 
     }
 
     @Override
     public void onGuiClosed() {
+        BatchResearchController.stopOnClose();
         AutoResearch.Stop = true;
         GetAllAspectButton.Stop = true;
         SetAspectButton.Stop = true;
@@ -254,6 +280,8 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
 
     @Inject(method = "func_73863_a", at = @At("Tail"))
     public void drawScreenTail(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+        BatchResearchController.tick(mc, player, this.inventorySlots);
+        if (batchButton != null) batchButton.displayString = BatchResearchController.getButtonText();
         if (this.inputField != null && this.inputField.getVisible()) {
             this.inputField.drawTextBox();
         }
