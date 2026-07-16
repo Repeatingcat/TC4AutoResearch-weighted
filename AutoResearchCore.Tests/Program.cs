@@ -31,4 +31,30 @@ Assert(ordered.SequenceEqual(["same-b", "same-a"]), "Inventory should break equa
 ordered = AspectCostPolicy.OrderCandidates(["same-a", "same-b"], inventory, ["same-b"]).ToArray();
 Assert(ordered.SequenceEqual(["same-a", "same-b"]), "Unused aspects should break remaining ties.");
 
+var hexes = new[] { new Hex(0, 1), new Hex(0, 0), new Hex(0, -1) };
+var targets = new Dictionary<Hex, string>
+{
+    [hexes[0]] = "x",
+    [hexes[2]] = "y",
+};
+var aspectMap = new Dictionary<string, List<string>>
+{
+    ["x"] = ["c", "d"],
+    ["y"] = ["c", "d"],
+    ["c"] = ["x", "y"],
+    ["d"] = ["x", "y"],
+};
+
+AspectCostPolicy.Configure("x:2&y:2&c:2&d:256&");
+var exact = WeightedPathSolver.Solve(hexes, targets, aspectMap);
+Assert(exact.HasSolution, "The exact solver should find the c path.");
+Assert(exact.IsOptimal, "The bounded two-terminal search should prove this small solution optimal.");
+Assert(exact.Solution.Single().Value == "c", "The exact solver should choose the cheaper c path.");
+
+AspectCostPolicy.Configure("x:2&y:2&c:256&d:2&");
+exact = WeightedPathSolver.Solve(hexes, targets, aspectMap);
+Assert(exact.HasSolution, "The exact solver should find the d path.");
+Assert(exact.IsOptimal, "The reversed two-terminal solution should also be proven optimal.");
+Assert(exact.Solution.Single().Value == "d", "Reversing costs should select the d path.");
+
 Console.WriteLine("AspectCostPolicy tests passed.");

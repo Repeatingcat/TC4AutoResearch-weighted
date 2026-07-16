@@ -7,7 +7,7 @@ import net.minecraft.client.gui.GuiScreen;
 
 public class GuiResearchDebug extends GuiScreen {
 
-    private static final int ROWS_PER_PAGE = 8;
+    private static final int ROWS_PER_PAGE = 6;
 
     private final GuiScreen parent;
     private int page;
@@ -77,9 +77,22 @@ public class GuiResearchDebug extends GuiScreen {
                 }
             } else {
                 fontRendererObj.drawString("\u603b\u6210\u672c: " + current.totalCost, left + 12, 50, 0x80FF80);
-                fontRendererObj.drawString("\u4f7f\u7528", left + 205, 50, 0xA0A0A0);
-                fontRendererObj.drawString("\u5355\u4ef7", left + 250, 50, 0xA0A0A0);
-                fontRendererObj.drawString("\u5c0f\u8ba1", left + 300, 50, 0xA0A0A0);
+                String searchText = "\u6a21\u5f0f: " + modeText(current.searchMode) + "  \u5019\u9009: "
+                    + current.candidateSolutions + "  \u6700\u4f18\u8bc1\u660e: " + (current.optimal ? "\u662f" : "\u5426");
+                fontRendererObj.drawString(
+                    fontRendererObj.trimStringToWidth(searchText, 240),
+                    left + 108,
+                    50,
+                    current.optimal ? 0x80FF80 : 0xFFE080);
+                if (current.expandedStates > 0 || current.generatedStates > 0)
+                    fontRendererObj.drawString(
+                        "\u72b6\u6001: " + current.expandedStates + " / " + current.generatedStates,
+                        left + 12,
+                        66,
+                        0xA0A0A0);
+                fontRendererObj.drawString("\u4f7f\u7528", left + 205, 82, 0xA0A0A0);
+                fontRendererObj.drawString("\u5355\u4ef7", left + 250, 82, 0xA0A0A0);
+                fontRendererObj.drawString("\u5c0f\u8ba1", left + 300, 82, 0xA0A0A0);
                 drawEntries(current, left);
             }
 
@@ -94,7 +107,7 @@ public class GuiResearchDebug extends GuiScreen {
     private void drawEntries(ResearchDebugState.Snapshot current, int left) {
         int from = page * ROWS_PER_PAGE;
         int to = Math.min(from + ROWS_PER_PAGE, current.entries.size());
-        int y = 66;
+        int y = 98;
         for (int i = from; i < to; i++) {
             ResearchDebugState.CostEntry entry = current.entries.get(i);
             fontRendererObj.drawString(fontRendererObj.trimStringToWidth(aspectName(entry.tag), 185), left + 12, y, 0xFFFFFF);
@@ -143,5 +156,11 @@ public class GuiResearchDebug extends GuiScreen {
         if (status == ResearchDebugState.Status.ERROR || status == ResearchDebugState.Status.NO_SOLUTION) return 0xFF8080;
         if (status == ResearchDebugState.Status.RUNNING) return 0xFFE080;
         return 0xA0A0A0;
+    }
+
+    private String modeText(String mode) {
+        if ("exact".equals(mode)) return "\u7cbe\u786e";
+        if ("hybrid".equals(mode)) return "\u6df7\u5408";
+        return "-";
     }
 }

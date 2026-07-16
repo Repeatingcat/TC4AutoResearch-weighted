@@ -185,6 +185,24 @@ namespace AutoResearch
                 var token = cts.Token;
 
                 object solvesLock = new object();
+                var solveTimer = Stopwatch.StartNew();
+
+                if (TargeItem.Count == 2)
+                {
+                    var exactResult = WeightedPathSolver.Solve(Hexes, TargeItem, AspectMap);
+                    if (exactResult.HasSolution && exactResult.IsOptimal)
+                    {
+                        Console.WriteLine(
+                            $"#stats|mode=exact|optimal=true|expanded={exactResult.ExpandedStates}|generated={exactResult.GeneratedStates}|candidates=1|elapsed={exactResult.ElapsedMilliseconds}");
+                        Console.WriteLine(string.Join(
+                            "",
+                            exactResult.Solution.Select(item => $"{item.Key.q}:{item.Key.r}|{item.Value}&")));
+                        ShutdownResetEvent.SetResult(0);
+                        return await ShutdownResetEvent.Task.ConfigureAwait(false);
+                    }
+                    if (exactResult.HasSolution)
+                        Solves.Add(exactResult.Solution);
+                }
 
                 while (true)
                 {
@@ -458,19 +476,7 @@ namespace AutoResearch
                         }
                     }
                     if (SolverM.Count != 0)
-                    {
-                        StringBuilder RetString = new StringBuilder();
-                        foreach (var item in SolverM)
-                        {
-                            RetString.Append(item.Key.q);
-                            RetString.Append(":");
-                            RetString.Append(item.Key.r);
-                            RetString.Append("|");
-                            RetString.Append(item.Value);
-                            RetString.Append("&");
-                        }
-                        Console.WriteLine(RetString.ToString());
-                    }
+                        Solves.Add(SolverM);
 
                     break;
                 }
@@ -496,12 +502,11 @@ namespace AutoResearch
                             if (Solver.Count != 0)
                             {
                                 Solves.Add(Solver);
-                                cts.Cancel();
                                 break;
                             }
                             if (token.IsCancellationRequested) break;
                         }
-                        cts.Cancel();
+                        break;
                     }
                 }, token);
                 var T2 = Task.Run(() =>
@@ -526,12 +531,10 @@ namespace AutoResearch
                         if (Solver.Count != 0)
                         {
                             Solves.Add(Solver);
-                            cts.Cancel();
                             break;
                         }
                         if (token.IsCancellationRequested) break;
                     }
-                    cts.Cancel();
                 }, token);
                 var T3 = Task.Run(() =>
                 {
@@ -683,40 +686,51 @@ namespace AutoResearch
                             if (Solver.Count != 0)
                                 Solves.Add(Solver);
                         }
-                        cts.Cancel();
                         break;
                     }
                 }, token);
 
                 try
                 {
-                    await Task.WhenAny(T1, T2, T3);
+                    var allStrategies = Task.WhenAll(T1, T2, T3);
+                    var completed = await Task.WhenAny(allStrategies, Task.Delay(2500));
+                    if (completed == allStrategies)
+                        await allStrategies;
+                    else
+                        cts.Cancel();
                 }
                 catch (OperationCanceledException)
                 {
                 }
-                var Retry = 0;
-                Dictionary<Hex, string> Solver = new();
-            Retry:
-                await Task.Delay(1000);
-                if (Solves.Count == 1)
+                catch (Exception)
                 {
-                    Solver = Solves.First();
+                    cts.Cancel();
                 }
-                else if (Solves.Count > 1)
+                Dictionary<Hex, string> Solver = new();
+                var distinctSolves = Solves
+                    .ToArray()
+                    .GroupBy(solution => string.Join(
+                        "&",
+                        solution.OrderBy(item => item.Key.q)
+                            .ThenBy(item => item.Key.r)
+                            .Select(item => $"{item.Key.q}:{item.Key.r}|{item.Value}")))
+                    .Select(group => group.First())
+                    .ToArray();
+                if (distinctSolves.Length == 1)
                 {
-                    Solver = Solves
+                    Solver = distinctSolves[0];
+                }
+                else if (distinctSolves.Length > 1)
+                {
+                    Solver = distinctSolves
                         .OrderBy(solver => AspectCostPolicy.CalculateCost(solver.Values))
                         .ThenBy(solver => solver.Values.Distinct().Count())
+                        .ThenBy(solver => string.Join(
+                            "&",
+                            solver.OrderBy(item => item.Key.q)
+                                .ThenBy(item => item.Key.r)
+                                .Select(item => $"{item.Key.q}:{item.Key.r}|{item.Value}")))
                         .First();
-                }
-                else if (Solves.Count == 0)
-                {
-                    if (Retry < 2)
-                    {
-                        Retry += 1;
-                        goto Retry;
-                    }
                 }
                 #region
                 //var Pair = TargeItem
@@ -880,6 +894,8 @@ namespace AutoResearch
                 #endregion
                 if (Solver.Count != 0)
                 {
+                    Console.WriteLine(
+                        $"#stats|mode=hybrid|optimal=false|expanded=0|generated=0|candidates={distinctSolves.Length}|elapsed={solveTimer.ElapsedMilliseconds}");
                     StringBuilder RetString = new StringBuilder();
                     foreach (var item in Solver)
                     {

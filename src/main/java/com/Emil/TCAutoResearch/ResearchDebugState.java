@@ -42,9 +42,15 @@ public final class ResearchDebugState {
         public final String solution;
         public final String message;
         public final List<CostEntry> entries;
+        public final String searchMode;
+        public final boolean optimal;
+        public final int expandedStates;
+        public final int generatedStates;
+        public final int candidateSolutions;
 
         private Snapshot(Status status, int noteId, long startedAt, long finishedAt, long totalCost, String solution,
-            String message, List<CostEntry> entries) {
+            String message, List<CostEntry> entries, String searchMode, boolean optimal, int expandedStates,
+            int generatedStates, int candidateSolutions) {
             this.status = status;
             this.noteId = noteId;
             this.startedAt = startedAt;
@@ -53,6 +59,11 @@ public final class ResearchDebugState {
             this.solution = solution;
             this.message = message;
             this.entries = Collections.unmodifiableList(entries);
+            this.searchMode = searchMode;
+            this.optimal = optimal;
+            this.expandedStates = expandedStates;
+            this.generatedStates = generatedStates;
+            this.candidateSolutions = candidateSolutions;
         }
 
         public long getElapsedMillis() {
@@ -69,7 +80,44 @@ public final class ResearchDebugState {
     public static synchronized void begin(int noteId, Map<String, Integer> costs) {
         activeCosts = new LinkedHashMap<>(costs);
         long now = System.currentTimeMillis();
-        snapshot = new Snapshot(Status.RUNNING, noteId, now, 0, 0, "", "", new ArrayList<CostEntry>());
+        snapshot = new Snapshot(
+            Status.RUNNING,
+            noteId,
+            now,
+            0,
+            0,
+            "",
+            "",
+            new ArrayList<CostEntry>(),
+            "",
+            false,
+            0,
+            0,
+            0);
+    }
+
+    public static synchronized void recordSearchStats(String line) {
+        Map<String, String> values = new LinkedHashMap<>();
+        for (String part : line.split("\\|")) {
+            int separator = part.indexOf('=');
+            if (separator > 0 && separator < part.length() - 1)
+                values.put(part.substring(0, separator), part.substring(separator + 1));
+        }
+
+        snapshot = new Snapshot(
+            snapshot.status,
+            snapshot.noteId,
+            snapshot.startedAt,
+            snapshot.finishedAt,
+            snapshot.totalCost,
+            snapshot.solution,
+            snapshot.message,
+            new ArrayList<>(snapshot.entries),
+            values.getOrDefault("mode", ""),
+            Boolean.parseBoolean(values.getOrDefault("optimal", "false")),
+            parseInt(values.get("expanded")),
+            parseInt(values.get("generated")),
+            parseInt(values.get("candidates")));
     }
 
     public static synchronized void recordSolution(String line) {
@@ -107,7 +155,12 @@ public final class ResearchDebugState {
             total,
             line,
             "",
-            entries);
+            entries,
+            snapshot.searchMode,
+            snapshot.optimal,
+            snapshot.expandedStates,
+            snapshot.generatedStates,
+            snapshot.candidateSolutions);
     }
 
     public static synchronized void recordNoSolution(int exitCode) {
@@ -138,10 +191,36 @@ public final class ResearchDebugState {
             snapshot.totalCost,
             snapshot.solution,
             message,
-            new ArrayList<>(snapshot.entries));
+            new ArrayList<>(snapshot.entries),
+            snapshot.searchMode,
+            snapshot.optimal,
+            snapshot.expandedStates,
+            snapshot.generatedStates,
+            snapshot.candidateSolutions);
     }
 
     private static Snapshot emptySnapshot() {
-        return new Snapshot(Status.IDLE, 0, 0, 0, 0, "", "", new ArrayList<CostEntry>());
+        return new Snapshot(
+            Status.IDLE,
+            0,
+            0,
+            0,
+            0,
+            "",
+            "",
+            new ArrayList<CostEntry>(),
+            "",
+            false,
+            0,
+            0,
+            0);
+    }
+
+    private static int parseInt(String value) {
+        try {
+            return value == null ? 0 : Integer.parseInt(value);
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
     }
 }

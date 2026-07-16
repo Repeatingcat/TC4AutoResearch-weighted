@@ -148,6 +148,10 @@ public class ResearchCurrectNote {
                     String line;
                     boolean gotSolution = false;
                     while ((line = reader.readLine()) != null) {
+                        if (line.startsWith("#stats|")) {
+                            ResearchDebugState.recordSearchStats(line);
+                            continue;
+                        }
                         if (!line.trim()
                             .isEmpty()) gotSolution = true;
                         SolvesNote.SolvesNoteHandle(line);
