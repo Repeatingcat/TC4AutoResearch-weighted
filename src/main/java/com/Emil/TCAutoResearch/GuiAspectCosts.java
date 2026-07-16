@@ -22,9 +22,8 @@ public class GuiAspectCosts extends GuiScreen {
     private static final int ROW_START = 82;
     private static final int ROW_HEIGHT = 22;
     private static final int BOTTOM_RESERVED = 64;
-    private static final int PANEL_COLOR = 0xF04A4E52;
-    private static final int ROW_COLOR = 0x405F6469;
-    private static final int ROW_ALT_COLOR = 0x80646A70;
+    private static final int PANEL_COLOR = 0xFF505458;
+    private static final int DIVIDER_COLOR = 0xFF3F4347;
 
     private final GuiScreen parent;
     private final Map<String, Integer> pendingCosts = new LinkedHashMap<>();
@@ -146,8 +145,8 @@ public class GuiAspectCosts extends GuiScreen {
             String tag = filteredTags.get(from + i);
             GuiTextField field = costFields.get(i);
             Aspect aspect = Aspect.getAspect(tag);
-            drawRect(left + 6, y - 1, right - 6, y + 20, i % 2 == 0 ? ROW_ALT_COLOR : ROW_COLOR);
-            if (aspect != null) UtilsFX.drawTag(left + 10, y + 1, aspect);
+            drawRect(left + 6, y + 20, right - 6, y + 21, DIVIDER_COLOR);
+            if (aspect != null) UtilsFX.drawTag(left + 10, y + 1, aspect, 0.0F, 0, 0.0D, 771, 1.0F, false);
             fontRendererObj.drawString(
                 fontRendererObj.trimStringToWidth(aspectName(tag), field.xPosition - left - 42),
                 left + 34,
