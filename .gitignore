@@ -1,0 +1,14 @@
+.dotnet/
+.dotnet_home/
+.dotnet-install.ps1
+.dotnet-sdk-*.zip
+.nuget/
+.gradle/
+.gradle-home/
+.jdk/
+.jdk-*.zip
+build/
+run/
+**/bin/
+**/obj/
+**/publish/

@@ -123,7 +123,8 @@ public class AutoResearch extends Thread {
                         if (Entry.aspect != null) WaitSend += Path + ":" + Entry.aspect.getTag() + "&";
                         else WaitSend += Path + "&";
                     }
-                    ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch.dll").toString(), WaitSend);
+                    WaitSend += "^" + Config.serializeAspectCosts();
+                    ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch.exe").toString(), WaitSend);
                     //ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch\\bin\\Debug\\net9.0\\AutoResearch.exe").toString(),WaitSend);
                     //ProcessBuilder builder = new ProcessBuilder(new File("C:\\Users\\GongSi\\Desktop\\TC4Helper-master\\AutoResearch\\bin\\Debug\\net9.0\\AutoResearch.exe").toString(),WaitSend);
                     try {

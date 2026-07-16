@@ -116,10 +116,13 @@ namespace AutoResearch
             //    Notes = File.ReadAllText($@"Note.txt").Split('^');
             //else if (File.Exists($@"..\..\..\..\Note.txt"))
             //    Notes = File.ReadAllText($@"..\..\..\..\Note.txt").Split('^');
-            if (args.Length == 1)
-                Notes = args[0].Split('^');
-            if (Notes.Length == 3)
+            if (args.Length != 1)
+                return 1;
+
+            Notes = args[0].Split('^');
+            if (Notes.Length >= 3)
             {
+                AspectCostPolicy.Configure(Notes.Length >= 4 ? Notes[3] : null);
                 foreach (var item in Notes[1].Split('&', StringSplitOptions.RemoveEmptyEntries))
                 {
                     var TempItem = item.Split(':');
@@ -702,7 +705,10 @@ namespace AutoResearch
                 }
                 else if (Solves.Count > 1)
                 {
-                    Solver = Solves.OrderBy(solver => solver.Values.Distinct().Count()).First();
+                    Solver = Solves
+                        .OrderBy(solver => AspectCostPolicy.CalculateCost(solver.Values))
+                        .ThenBy(solver => solver.Values.Distinct().Count())
+                        .First();
                 }
                 else if (Solves.Count == 0)
                 {
@@ -938,7 +944,7 @@ namespace AutoResearch
             //var Success = new List<(Dictionary<Hex, string>, Dictionary<string, int>)>();
             //var Fail = new List<(Dictionary<Hex, string>, Dictionary<string, int>)>();
             //var AllTry = new List<(List<Dictionary<Hex, string>> Success, List<Dictionary<Hex, List<string>>> Fail)>();
-            foreach (var item in OriSolver)
+            foreach (var item in OriSolver.OrderBy(solver => AspectCostPolicy.CalculateCost(solver.Values)))
             {
                 List<((string, string), Dictionary<Hex, string>)> TempWannaPath = new();
                 var First = item.First();
@@ -1247,7 +1253,10 @@ namespace AutoResearch
                 //    return userAspectValue + Random.Shared.NextDouble() * 0.5;
                 //});
                 //foreach (var item in sortedCollection)
-                foreach (var item in AspectMap[RetSaveList[OriList.ElementAt(CurretCount - 1).Key]].OrderByDescending(a => (RetSaveList.ContainsValue(a) ? -100 : UserAspect.TryGetValue(a, out var c) ? c : 0) + Random.Shared.NextDouble() * 0.5))
+                foreach (var item in AspectCostPolicy.OrderCandidates(
+                    AspectMap[RetSaveList[OriList.ElementAt(CurretCount - 1).Key]],
+                    UserAspect,
+                    RetSaveList.Values.ToArray()))
                 {
                     ForeachList.Add(item);
 
@@ -1296,7 +1305,9 @@ namespace AutoResearch
             }
             else
             {
-                var PreAspect = AspectMap[RetSaveList.Last().Value].OrderBy(a => UserAspect.TryGetValue(a, out var c) ? c : 0).ToList();
+                var PreAspect = AspectCostPolicy
+                    .OrderCandidates(AspectMap[RetSaveList.Last().Value], UserAspect, RetSaveList.Values.ToArray())
+                    .ToList();
                 var CurrectIntersect = CurrectHex.Value.Intersect(PreAspect).ToList();
                 if (CurrectIntersect.Count != 0)
                 {

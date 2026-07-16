@@ -27,6 +27,7 @@ public class ClientProxy implements IProxy {
 
     @Override
     public void postInit(FMLPostInitializationEvent event) {
+        Config.registerAspectCosts(thaumcraft.api.aspects.Aspect.aspects.keySet());
         ClientCommandHandler.instance.registerCommand(new Command());
     }
 

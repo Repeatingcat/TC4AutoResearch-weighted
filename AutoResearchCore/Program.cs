@@ -66,8 +66,9 @@ namespace AutoResearch
             //    Notes = File.ReadAllText($@"..\..\..\..\Note.txt").Split('^');
             //if (args.Length == 1)
             //    Notes = args[0].Split('^');
-            if (Notes.Length == 3)
+            if (Notes.Length >= 3)
             {
+                AspectCostPolicy.Configure(Notes.Length >= 4 ? Notes[3] : null);
                 foreach (var item in Notes[1].Split('&', StringSplitOptions.RemoveEmptyEntries))
                 {
                     var TempItem = item.Split(':');
@@ -242,8 +243,11 @@ namespace AutoResearch
                                             if (RetAspect.FirstOrDefault(x => x.Key == WaitAdd.Key).Key != null) continue;
                                             if (WaitAdd.Value.Count > 1)
                                             {
-                                                var FindF = WaitAdd.Value.Where(key => UserAspect.ContainsKey(key))
-                                                    .OrderByDescending(key => UserAspect[key])
+                                                var FindF = AspectCostPolicy
+                                                    .OrderCandidates(
+                                                        WaitAdd.Value.Where(key => UserAspect.ContainsKey(key)),
+                                                        UserAspect,
+                                                        RetAspect.Values.ToArray())
                                                     .FirstOrDefault();
                                                 RetAspect.Add(WaitAdd.Key, FindF);
                                                 AddToNoteAspectNum(FindF);
@@ -334,33 +338,17 @@ namespace AutoResearch
                                         }
                                     }
                                 }
-                                var Find = Solves.FirstOrDefault(x => x.Item3.Count == 0);
+                                var orderedSolves = Solves
+                                    .OrderBy(solve => AspectCostPolicy.CalculateCost(solve.Item1.Values))
+                                    .ThenBy(solve => solve.Item3.Values.Sum());
+                                var Find = orderedSolves.FirstOrDefault(x => x.Item3.Count == 0);
                                 if (Find.Item1 != null)
                                 {
                                     AllRetAspect = Find.Item1;
                                 }
                                 else
                                 {
-                                    AllRetAspect = Solves
-                                       .SelectMany(solve => solve.Item3.Keys.Distinct())
-                                       .GroupBy(key => key)
-                                       .Select(g => new
-                                       {
-                                           Key = g.Key,
-                                           Count = Solves.Count(s => s.Item3.ContainsKey(g.Key)),
-                                           MinValue = Solves
-                                           .Where(s => s.Item3.ContainsKey(g.Key))
-                                           .Select(s => s.Item3[g.Key])
-                                           .Min()
-                                       })
-                                       .OrderBy(x => x.Count)
-                                       .ThenBy(x => x.MinValue)
-                                       .Select(x => x.Key)
-                                       .Select(bestKey => Solves
-                                       .Where(s => s.Item3.ContainsKey(bestKey))
-                                       .OrderBy(s => s.Item3[bestKey])
-                                       .Select(s => s.Item1)
-                                       .First()).First();
+                                    AllRetAspect = orderedSolves.First().Item1;
                                 }
                             }
                             else
@@ -698,6 +686,9 @@ namespace AutoResearch
                 }
                 ForeachList = ForeachList.Intersect(OriList.ElementAt(CurretCount).Value).ToList();
             }
+            ForeachList = AspectCostPolicy
+                .OrderCandidates(ForeachList, UserAspect, RetSaveList.Values.ToArray())
+                .ToList();
             CurretCount += 1;
 
             foreach (var item in ForeachList)
@@ -761,6 +752,9 @@ namespace AutoResearch
                     ForeachList.Add(item);
                 }
             }
+            ForeachList = AspectCostPolicy
+                .OrderCandidates(ForeachList, UserAspect, RetSaveList.Values.ToArray())
+                .ToList();
             CurretCount += 1;
 
             foreach (var item in ForeachList)
@@ -895,11 +889,9 @@ namespace AutoResearch
                 var possibiList = orderedList[i].Value.Intersect(Currect).ToList();
                 if (possibiList.Count > 1)
                 {
-                    var sortedPossibiList = possibiList
-                        .OrderByDescending(s => UserAspect.ContainsKey(s) ? UserAspect[s] : 0)
-                        .ToList();
-                    var topN = sortedPossibiList.Take(sortedPossibiList.Count / 2).ToList(); // 可选：只从前几个中抽取
-                    First = topN[new Random().Next(sortedPossibiList.Count / 2)];
+                    First = AspectCostPolicy
+                        .OrderCandidates(possibiList, UserAspect, NewAdd.Values.ToArray())
+                        .First();
                 }
                 else
                     First = possibiList.First();
@@ -910,7 +902,9 @@ namespace AutoResearch
             Currect = AspectMap[TargetASpect.Item2];
             for (int i = index - 1; i >= 0; i--)
             {
-                var First = orderedList[i].Value.Intersect(Currect).FirstOrDefault();//这里可以匹配用户存有的最大值，现在使用随机算法
+                var First = AspectCostPolicy
+                    .OrderCandidates(orderedList[i].Value.Intersect(Currect), UserAspect, NewAdd.Values.ToArray())
+                    .FirstOrDefault();
                 if (string.IsNullOrEmpty(First))
                 {
                     return new();
@@ -937,7 +931,9 @@ namespace AutoResearch
                     NewAdd.Add(CurrectItem.Key, LastAspect);
                 }
                 var possibiList = AspectMap[LastAspect];
-                var sortedPossibiList = possibiList.OrderByDescending(s => UserAspect.ContainsKey(s) ? UserAspect[s] : 0).ToList();
+                var sortedPossibiList = AspectCostPolicy
+                    .OrderCandidates(possibiList, UserAspect, NewAdd.Values.ToArray())
+                    .ToList();
             }
             foreach (var item in TryPathAspect)
             {
@@ -959,11 +955,10 @@ namespace AutoResearch
                 }
                 var possibiList = AspectMap[LastAspect];
 
-                var sortedPossibiList = possibiList
-                       .OrderByDescending(s => UserAspect.ContainsKey(s) ? UserAspect[s] : 0)
-                       .ToList();
-                var topN = sortedPossibiList.Take(sortedPossibiList.Count / 2).ToList(); // 可选：只从前几个中抽取
-                LastAspect = topN[new Random().Next(sortedPossibiList.Count / 2)];
+                var sortedPossibiList = AspectCostPolicy
+                    .OrderCandidates(possibiList, UserAspect, NewAdd.Values.ToArray())
+                    .ToList();
+                LastAspect = sortedPossibiList.First();
                 NewAdd.Add(item.Key, LastAspect);
             }
 
