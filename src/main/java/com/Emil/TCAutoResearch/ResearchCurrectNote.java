@@ -126,8 +126,10 @@ public class ResearchCurrectNote {
                     if (Entry.aspect != null) WaitSend += Path + ":" + Entry.aspect.getTag() + "&";
                     else WaitSend += Path + "&";
                 }
+                WaitSend += "^" + Config.serializeAspectCosts();
                 //ProcessBuilder builder = new ProcessBuilder(new File("C:\\Users\\GongSi\\Desktop\\TC4Helper-master\\AutoResearch\\bin\\Debug\\net9.0\\AutoResearch.exe").toString(),WaitSend);
-                ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch.dll").toString(), WaitSend);
+                ResearchDebugState.begin(guiResearchTable.note.hashCode(), Config.getAspectCostsSnapshot());
+                ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch.exe").toString(), WaitSend);
                 try {
                     Process process = builder.start();
                     Process proc = Runtime.getRuntime().exec("tasklist");
@@ -144,11 +146,16 @@ public class ResearchCurrectNote {
                     }
                     BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                     String line;
+                    boolean gotSolution = false;
                     while ((line = reader.readLine()) != null) {
+                        if (!line.trim()
+                            .isEmpty()) gotSolution = true;
                         SolvesNote.SolvesNoteHandle(line);
                     }
                     int exitCode = process.waitFor();
+                    if (!gotSolution) ResearchDebugState.recordNoSolution(exitCode);
                 } catch (Exception e) {
+                    ResearchDebugState.recordFailure(e);
                     System.out.println(e.getMessage());
                     System.out.println(e.getStackTrace());
                 }finally {

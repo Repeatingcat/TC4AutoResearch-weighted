@@ -25,6 +25,7 @@ public class Config {
     public static Configuration config;
     public static File ConbfigFilePath;
     public static final Map<String, Integer> AspectCosts = new LinkedHashMap<>();
+    private static final Map<String, Integer> DefaultAspectCosts = new LinkedHashMap<>();
 
     public static void synchronizeConfiguration(File configFile) {
         ConbfigFilePath = new File(configFile.getParent(), "TCAutoResearch.cfg");
@@ -61,6 +62,25 @@ public class Config {
         return serialized.toString();
     }
 
+    public static synchronized Map<String, Integer> getAspectCostsSnapshot() {
+        return new LinkedHashMap<>(AspectCosts);
+    }
+
+    public static synchronized int getDefaultAspectCost(String tag) {
+        Integer cost = DefaultAspectCosts.get(tag);
+        return cost == null ? UNKNOWN_ASPECT_COST : cost;
+    }
+
+    public static synchronized void saveAspectCosts(Map<String, Integer> costs) {
+        for (Map.Entry<String, Integer> entry : costs.entrySet()) {
+            int cost = Math.max(1, entry.getValue());
+            config.get(ASPECT_COST_CATEGORY, entry.getKey(), cost)
+                .set(cost);
+            AspectCosts.put(entry.getKey(), cost);
+        }
+        config.save();
+    }
+
     private static void loadAspectCosts(Collection<String> aspectTags) {
         Properties defaults = new Properties();
         try (InputStream stream = Config.class.getResourceAsStream("/default_aspect_costs.properties")) {
@@ -68,6 +88,11 @@ public class Config {
             defaults.load(stream);
         } catch (IOException e) {
             throw new RuntimeException("Unable to load default aspect costs", e);
+        }
+
+        DefaultAspectCosts.clear();
+        for (String tag : defaults.stringPropertyNames()) {
+            DefaultAspectCosts.put(tag, Integer.parseInt(defaults.getProperty(tag)));
         }
 
         TreeSet<String> tags = new TreeSet<>(defaults.stringPropertyNames());

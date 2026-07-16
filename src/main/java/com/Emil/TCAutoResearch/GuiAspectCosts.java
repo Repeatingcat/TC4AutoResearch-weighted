@@ -1,0 +1,214 @@
+package com.Emil.TCAutoResearch;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.GuiTextField;
+
+import org.lwjgl.input.Keyboard;
+
+import thaumcraft.api.aspects.Aspect;
+
+public class GuiAspectCosts extends GuiScreen {
+
+    private static final int ROWS_PER_PAGE = 6;
+
+    private final GuiScreen parent;
+    private final Map<String, Integer> pendingCosts = new LinkedHashMap<>();
+    private final List<String> filteredTags = new ArrayList<>();
+    private final List<GuiTextField> costFields = new ArrayList<>();
+    private GuiTextField searchField;
+    private int page;
+
+    public GuiAspectCosts(GuiScreen parent) {
+        this.parent = parent;
+        pendingCosts.putAll(Config.getAspectCostsSnapshot());
+    }
+
+    @Override
+    public void initGui() {
+        Keyboard.enableRepeatEvents(true);
+        buttonList.clear();
+        int center = width / 2;
+        searchField = new GuiTextField(fontRendererObj, center - 95, 30, 190, 18);
+        searchField.setMaxStringLength(64);
+
+        buttonList.add(new GuiButton(0, center - 145, height - 28, 70, 20, "\u4fdd\u5b58"));
+        buttonList.add(new GuiButton(1, center - 70, height - 28, 70, 20, "\u53d6\u6d88"));
+        buttonList.add(new GuiButton(2, center + 5, height - 28, 140, 20, "\u6062\u590d\u9ed8\u8ba4"));
+        buttonList.add(new GuiButton(3, center - 145, height - 52, 70, 20, "\u4e0a\u4e00\u9875"));
+        buttonList.add(new GuiButton(4, center + 75, height - 52, 70, 20, "\u4e0b\u4e00\u9875"));
+        applyFilter();
+    }
+
+    @Override
+    public void onGuiClosed() {
+        Keyboard.enableRepeatEvents(false);
+    }
+
+    @Override
+    public void updateScreen() {
+        searchField.updateCursorCounter();
+        for (GuiTextField field : costFields) field.updateCursorCounter();
+    }
+
+    @Override
+    protected void actionPerformed(GuiButton button) {
+        if (button.id == 0) {
+            commitVisibleFields();
+            Config.saveAspectCosts(pendingCosts);
+            mc.displayGuiScreen(parent);
+        } else if (button.id == 1) {
+            mc.displayGuiScreen(parent);
+        } else if (button.id == 2) {
+            for (String tag : pendingCosts.keySet()) pendingCosts.put(tag, Config.getDefaultAspectCost(tag));
+            rebuildCostFields();
+        } else if (button.id == 3 && page > 0) {
+            commitVisibleFields();
+            page--;
+            rebuildCostFields();
+        } else if (button.id == 4 && page + 1 < pageCount()) {
+            commitVisibleFields();
+            page++;
+            rebuildCostFields();
+        }
+    }
+
+    @Override
+    protected void keyTyped(char typedChar, int keyCode) {
+        if (keyCode == 1) {
+            mc.displayGuiScreen(parent);
+            return;
+        }
+        String previousSearch = searchField.getText();
+        if (searchField.textboxKeyTyped(typedChar, keyCode)) {
+            if (!previousSearch.equals(searchField.getText())) {
+                commitVisibleFields();
+                page = 0;
+                applyFilter();
+            }
+            return;
+        }
+        for (GuiTextField field : costFields) {
+            if (field.textboxKeyTyped(typedChar, keyCode)) return;
+        }
+        super.keyTyped(typedChar, keyCode);
+    }
+
+    @Override
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) {
+        super.mouseClicked(mouseX, mouseY, mouseButton);
+        searchField.mouseClicked(mouseX, mouseY, mouseButton);
+        for (GuiTextField field : costFields) field.mouseClicked(mouseX, mouseY, mouseButton);
+    }
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        drawDefaultBackground();
+        int center = width / 2;
+        int left = center - 180;
+        int right = center + 180;
+        drawRect(left, 8, right, height - 58, 0xD0101010);
+        drawCenteredString(fontRendererObj, "\u8981\u7d20\u6743\u91cd", center, 14, 0xFFFFFF);
+        fontRendererObj.drawString("\u641c\u7d22", center - 128, 35, 0xA0A0A0);
+        searchField.drawTextBox();
+        fontRendererObj.drawString("\u8981\u7d20", left + 12, 55, 0xA0A0A0);
+        fontRendererObj.drawString("\u6743\u91cd", right - 70, 55, 0xA0A0A0);
+
+        int from = page * ROWS_PER_PAGE;
+        int y = 70;
+        boolean valid = true;
+        for (int i = 0; i < costFields.size(); i++) {
+            String tag = filteredTags.get(from + i);
+            GuiTextField field = costFields.get(i);
+            fontRendererObj.drawString(
+                fontRendererObj.trimStringToWidth(aspectName(tag), field.xPosition - left - 20),
+                left + 12,
+                y + 5,
+                0xFFFFFF);
+            boolean fieldValid = isPositiveInteger(field.getText());
+            field.setTextColor(fieldValid ? 0xE0E0E0 : 0xFF6060);
+            valid &= fieldValid;
+            field.drawTextBox();
+            y += 22;
+        }
+        ((GuiButton) buttonList.get(0)).enabled = valid;
+        drawCenteredString(fontRendererObj, (page + 1) + " / " + pageCount(), center, height - 46, 0x909090);
+        super.drawScreen(mouseX, mouseY, partialTicks);
+    }
+
+    @Override
+    public boolean doesGuiPauseGame() {
+        return false;
+    }
+
+    private void applyFilter() {
+        filteredTags.clear();
+        String query = searchField.getText()
+            .trim()
+            .toLowerCase(Locale.ROOT);
+        for (String tag : pendingCosts.keySet()) {
+            String name = aspectName(tag)
+                .toLowerCase(Locale.ROOT);
+            if (query.isEmpty() || tag.toLowerCase(Locale.ROOT)
+                .contains(query)
+                || name.contains(query)) filteredTags.add(tag);
+        }
+        if (page >= pageCount()) page = pageCount() - 1;
+        rebuildCostFields();
+    }
+
+    private void rebuildCostFields() {
+        costFields.clear();
+        int center = width / 2;
+        int right = center + Math.min(180, width / 2 - 8);
+        int from = page * ROWS_PER_PAGE;
+        int to = Math.min(from + ROWS_PER_PAGE, filteredTags.size());
+        int y = 70;
+        for (int i = from; i < to; i++) {
+            String tag = filteredTags.get(i);
+            GuiTextField field = new GuiTextField(fontRendererObj, right - 74, y, 62, 18);
+            field.setMaxStringLength(10);
+            field.setText(Integer.toString(pendingCosts.get(tag)));
+            costFields.add(field);
+            y += 22;
+        }
+        ((GuiButton) buttonList.get(3)).enabled = page > 0;
+        ((GuiButton) buttonList.get(4)).enabled = page + 1 < pageCount();
+    }
+
+    private void commitVisibleFields() {
+        int from = page * ROWS_PER_PAGE;
+        for (int i = 0; i < costFields.size(); i++) {
+            String tag = filteredTags.get(from + i);
+            try {
+                int value = Integer.parseInt(costFields.get(i)
+                    .getText());
+                if (value > 0) pendingCosts.put(tag, value);
+            } catch (NumberFormatException ignored) {}
+        }
+    }
+
+    private int pageCount() {
+        return Math.max(1, (filteredTags.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
+    }
+
+    private boolean isPositiveInteger(String text) {
+        try {
+            return Integer.parseInt(text) > 0;
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
+    }
+
+    private String aspectName(String tag) {
+        Aspect aspect = Aspect.getAspect(tag);
+        String name = aspect == null ? tag : aspect.getName();
+        return name + " (" + tag + ")";
+    }
+}

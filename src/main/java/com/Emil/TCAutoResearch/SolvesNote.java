@@ -24,6 +24,7 @@ public class SolvesNote {
 
     public static void SolvesNoteHandle(String Line) {
         SolvesNote.LastNote = Line;
+        ResearchDebugState.recordSolution(Line);
         Unless = null;
         var RetAspectNote = Line.split("&");
         if (RetAspectNote.length == 0) return;

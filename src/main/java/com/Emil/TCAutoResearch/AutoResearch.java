@@ -124,6 +124,7 @@ public class AutoResearch extends Thread {
                         else WaitSend += Path + "&";
                     }
                     WaitSend += "^" + Config.serializeAspectCosts();
+                    ResearchDebugState.begin(guiResearchTable.note.hashCode(), Config.getAspectCostsSnapshot());
                     ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch.exe").toString(), WaitSend);
                     //ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch\\bin\\Debug\\net9.0\\AutoResearch.exe").toString(),WaitSend);
                     //ProcessBuilder builder = new ProcessBuilder(new File("C:\\Users\\GongSi\\Desktop\\TC4Helper-master\\AutoResearch\\bin\\Debug\\net9.0\\AutoResearch.exe").toString(),WaitSend);
@@ -146,17 +147,22 @@ public class AutoResearch extends Thread {
 
                         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                         String line;
+                        boolean gotSolution = false;
                         while ((line = reader.readLine()) != null) {
+                            if (!line.trim()
+                                .isEmpty()) gotSolution = true;
                             SolvesNote.SolvesNoteHandle(line);
                         }
                         int exitCode = process.waitFor();
+                        if (!gotSolution) ResearchDebugState.recordNoSolution(exitCode);
                     } catch (Exception e) {
+                        ResearchDebugState.recordFailure(e);
                         System.out.println(e.getMessage());
                         System.out.println(e.getStackTrace());
                     }
                 }
             } catch (Exception e) {
-
+                ResearchDebugState.recordFailure(e);
             }finally {
                 PID=-1;
             }

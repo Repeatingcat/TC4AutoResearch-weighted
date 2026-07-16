@@ -46,6 +46,8 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
     GuiButtonExt button2;
     GuiButtonExt button3;
     GuiButtonExt button4;
+    GuiButtonExt debugButton;
+    GuiButtonExt costsButton;
 
     GuiTextField inputField;
     SetAspectButton confirmButton;
@@ -84,6 +86,24 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
         this.buttonList.add(button2);
         this.buttonList.add(button3);
         this.buttonList.add(button4);
+
+        int sideButtonX = Math.min(super.guiLeft + super.xSize, this.width - 80);
+        debugButton = new GuiButtonExt(
+            106,
+            sideButtonX,
+            super.guiTop + 255 / 2 - 25,
+            80,
+            25,
+            "\u8c03\u8bd5\u4fe1\u606f");
+        costsButton = new GuiButtonExt(
+            107,
+            sideButtonX,
+            super.guiTop + 255 / 2,
+            80,
+            25,
+            "\u8981\u7d20\u6743\u91cd");
+        this.buttonList.add(debugButton);
+        this.buttonList.add(costsButton);
 
         this.inputField = new GuiTextField(this.fontRendererObj, 0, 0, 25, 10);
         this.inputField.setMaxStringLength(50);
@@ -156,6 +176,10 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
                     } else mc.thePlayer.addChatMessage(new ChatComponentText("笔记重新解锁失败,无上次解锁数据"));
                 } else mc.thePlayer.addChatMessage(new ChatComponentText("笔记重新解锁失败,笔记已经解锁"));
             }
+        } else if (Targetbutton.id == 106) {
+            mc.displayGuiScreen(new GuiResearchDebug(this));
+        } else if (Targetbutton.id == 107) {
+            mc.displayGuiScreen(new GuiAspectCosts(this));
         } else mc.thePlayer.addChatMessage(new ChatComponentText("笔记重新解锁失败,没有放入笔记"));
 
     }
