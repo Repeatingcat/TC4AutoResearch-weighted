@@ -17,7 +17,6 @@ public final class BatchResearchController {
         IDLE,
         WAITING_FOR_INSERT,
         SOLVING,
-        WAITING_FOR_PICKUP,
         WAITING_FOR_RETURN
     }
 
@@ -153,7 +152,8 @@ public final class BatchResearchController {
                         return;
                     }
                     normalClick(minecraft, player, container, NOTE_SLOT);
-                    phase = Phase.WAITING_FOR_PICKUP;
+                    normalClick(minecraft, player, container, returnSlot);
+                    phase = Phase.WAITING_FOR_RETURN;
                     phaseStartedAt = now;
                     lastActionAt = now;
                 } else if (!container.getSlot(0)
@@ -166,29 +166,8 @@ public final class BatchResearchController {
                         true);
                 }
                 break;
-            case WAITING_FOR_PICKUP:
-                ItemStack carriedStack = player.inventory.getItemStack();
-                if (!noteSlot.getHasStack() && isResearchNote(carriedStack)) {
-                    returnSlot = findReturnSlot(container, returnSlot);
-                    if (returnSlot < 0) {
-                        restoreCarriedNote(minecraft, player, container, noteSlot);
-                        stop(
-                            player,
-                            "\u6279\u91cf\u89e3\u9898\u5df2\u505c\u6b62\uff1a\u80cc\u5305\u6ca1\u6709\u7a7a\u4f4d\u53d6\u56de\u5df2\u5b8c\u6210\u7b14\u8bb0",
-                            true);
-                        return;
-                    }
-                    normalClick(minecraft, player, container, returnSlot);
-                    phase = Phase.WAITING_FOR_RETURN;
-                    phaseStartedAt = now;
-                    lastActionAt = now;
-                } else if (now - phaseStartedAt > SLOT_SYNC_TIMEOUT) {
-                    restoreCarriedNote(minecraft, player, container, noteSlot);
-                    stop(player, "\u6279\u91cf\u89e3\u9898\u5df2\u505c\u6b62\uff1a\u65e0\u6cd5\u4ece\u7814\u7a76\u53f0\u53d6\u4e0b\u7b14\u8bb0", true);
-                }
-                break;
             case WAITING_FOR_RETURN:
-                carriedStack = player.inventory.getItemStack();
+                ItemStack carriedStack = player.inventory.getItemStack();
                 if (carriedStack == null && isResearchNote(
                     container.getSlot(returnSlot)
                         .getStack())) {
@@ -198,6 +177,19 @@ public final class BatchResearchController {
                     returnSlot = -1;
                     phase = Phase.IDLE;
                     phaseStartedAt = now;
+                } else if (isResearchNote(carriedStack)) {
+                    int retrySlot = findReturnSlot(container, returnSlot);
+                    if (retrySlot >= 0) {
+                        returnSlot = retrySlot;
+                        normalClick(minecraft, player, container, returnSlot);
+                        lastActionAt = now;
+                    } else {
+                        restoreCarriedNote(minecraft, player, container, noteSlot);
+                        stop(
+                            player,
+                            "\u6279\u91cf\u89e3\u9898\u5df2\u505c\u6b62\uff1a\u80cc\u5305\u6ca1\u6709\u7a7a\u4f4d\u53d6\u56de\u5df2\u5b8c\u6210\u7b14\u8bb0",
+                            true);
+                    }
                 } else if (now - phaseStartedAt > SLOT_SYNC_TIMEOUT) {
                     restoreCarriedNote(minecraft, player, container, noteSlot);
                     stop(
