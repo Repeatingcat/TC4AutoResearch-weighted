@@ -34,8 +34,21 @@ public class SolvesNote {
         for (String Item : RetAspectNote) {
             var RetAspectTemp = Item.split("\\|");
             if (RetAspectTemp.length == 2) {
-                var Hex = guiResearchTable.note.hexes.get(RetAspectTemp[0]);
+                String coordinate = RetAspectTemp[0];
+                HexUtils.Hex Hex = resolveHex(coordinate);
+                if (Hex == null) {
+                    String message = "Solver returned a coordinate outside this note: " + coordinate;
+                    ResearchDebugState.recordFailure(message);
+                    PlayerNotifications.addNotification("\u6c42\u89e3\u5668\u8fd4\u56de\u4e86\u65e0\u6548\u5750\u6807: " + coordinate);
+                    return;
+                }
                 var AspectItem = Aspect.getAspect(RetAspectTemp[1]);
+                if (AspectItem == null) {
+                    String message = "Solver returned an unknown aspect: " + RetAspectTemp[1];
+                    ResearchDebugState.recordFailure(message);
+                    PlayerNotifications.addNotification("\u6c42\u89e3\u5668\u8fd4\u56de\u4e86\u672a\u77e5\u8981\u7d20: " + RetAspectTemp[1]);
+                    return;
+                }
                 ResearchRetData.put(Hex, AspectItem);
                 if (ResearchRetCount.containsKey(AspectItem)) {
                     ResearchRetCount.put(AspectItem, ResearchRetCount.get(AspectItem) + 1);
@@ -82,6 +95,19 @@ public class SolvesNote {
                 new ChatComponentText(
                     "笔记解锁失败,请补充" + "[" + StatCollector.translateToLocal("tc.aspect.help." + Unless.getTag()) + "]"));
             else mc.thePlayer.addChatMessage(new ChatComponentText("笔记解锁失败,算子解算失败,请手动连接各个元素"));
+        }
+    }
+
+    private static HexUtils.Hex resolveHex(String coordinate) {
+        if (guiResearchTable == null || guiResearchTable.note == null
+            || !guiResearchTable.note.hexEntries.containsKey(coordinate)) return null;
+
+        String[] parts = coordinate.split(":");
+        if (parts.length != 2) return null;
+        try {
+            return new HexUtils.Hex(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+        } catch (NumberFormatException ignored) {
+            return null;
         }
     }
 

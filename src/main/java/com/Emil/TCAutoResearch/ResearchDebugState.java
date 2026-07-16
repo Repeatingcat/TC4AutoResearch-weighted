@@ -120,6 +120,10 @@ public final class ResearchDebugState {
         snapshot = completed(Status.ERROR, message);
     }
 
+    public static synchronized void recordFailure(String message) {
+        snapshot = completed(Status.ERROR, message == null ? "Unknown solver error" : message);
+    }
+
     public static synchronized Snapshot getSnapshot() {
         return snapshot;
     }
@@ -131,10 +135,10 @@ public final class ResearchDebugState {
             snapshot.noteId,
             startedAt,
             System.currentTimeMillis(),
-            0,
-            "",
+            snapshot.totalCost,
+            snapshot.solution,
             message,
-            new ArrayList<CostEntry>());
+            new ArrayList<>(snapshot.entries));
     }
 
     private static Snapshot emptySnapshot() {
