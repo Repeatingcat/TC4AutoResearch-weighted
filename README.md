@@ -9,7 +9,7 @@
 遇到笔与墨耗尽、单张笔记 30 秒内未完成、容器同步失败或已完成笔记无法放回背包时，批量模式会停止并在聊天栏说明原因。运行期间不要手动移动研究台中的当前笔记。
 我的世界1.7.10 神秘时代4模组 研究笔记 自动解锁
 
-该项目Fork自[https://github.com/sailro/Shellify](https://github.com/wohaopa/TC4Helper)，感谢wohaopa写的代码作为参考
+本项目基于 [cdj68765/TC4AutoResearch](https://github.com/cdj68765/TC4AutoResearch) 继续开发；原项目参考了 [wohaopa/TC4Helper](https://github.com/wohaopa/TC4Helper) 的代码，感谢原作者的工作。
 
 ## 要素权重
 
