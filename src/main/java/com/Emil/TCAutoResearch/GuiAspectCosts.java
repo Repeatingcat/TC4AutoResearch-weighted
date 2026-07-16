@@ -12,6 +12,9 @@ import net.minecraft.client.gui.GuiTextField;
 
 import org.lwjgl.input.Keyboard;
 
+import thaumcraft.api.aspects.Aspect;
+import thaumcraft.client.lib.UtilsFX;
+
 public class GuiAspectCosts extends GuiScreen {
 
     private static final int MIN_ROWS_PER_PAGE = 4;
@@ -129,7 +132,7 @@ public class GuiAspectCosts extends GuiScreen {
             center,
             53,
             0xD0B878);
-        fontRendererObj.drawString("\u8981\u7d20", left + 12, 69, 0xA0A0A0);
+        fontRendererObj.drawString("\u8981\u7d20", left + 34, 69, 0xA0A0A0);
         fontRendererObj.drawString("\u6743\u91cd", right - 70, 69, 0xA0A0A0);
 
         int from = page * rowsPerPage;
@@ -138,9 +141,11 @@ public class GuiAspectCosts extends GuiScreen {
         for (int i = 0; i < costFields.size(); i++) {
             String tag = filteredTags.get(from + i);
             GuiTextField field = costFields.get(i);
+            Aspect aspect = Aspect.getAspect(tag);
+            if (aspect != null) UtilsFX.drawTag(left + 10, y + 1, aspect);
             fontRendererObj.drawString(
-                fontRendererObj.trimStringToWidth(aspectName(tag), field.xPosition - left - 20),
-                left + 12,
+                fontRendererObj.trimStringToWidth(aspectName(tag), field.xPosition - left - 42),
+                left + 34,
                 y + 5,
                 0xFFFFFF);
             boolean fieldValid = isPositiveInteger(field.getText());
