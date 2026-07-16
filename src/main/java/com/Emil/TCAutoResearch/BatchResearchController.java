@@ -17,7 +17,8 @@ public final class BatchResearchController {
         IDLE,
         WAITING_FOR_INSERT,
         SOLVING,
-        WAITING_FOR_REMOVE
+        WAITING_FOR_PICKUP,
+        WAITING_FOR_RETURN
     }
 
     private static final int NOTE_SLOT = 1;
@@ -33,6 +34,8 @@ public final class BatchResearchController {
     private static int total;
     private static int completed;
     private static boolean activeNoteCounted;
+    private static int activeSourceSlot = -1;
+    private static int returnSlot = -1;
     private static long phaseStartedAt;
     private static long lastActionAt;
     private static long lastTickAt;
@@ -42,6 +45,10 @@ public final class BatchResearchController {
     public static boolean start(Minecraft minecraft, EntityPlayer player, Container container) {
         if (running) return true;
         if (container == null || container.inventorySlots.size() <= NOTE_SLOT) return false;
+        if (player != null && player.inventory.getItemStack() != null) {
+            notifyPlayer(player, "\u6279\u91cf\u89e3\u9898\u65e0\u6cd5\u5f00\u59cb\uff1a\u8bf7\u5148\u653e\u4e0b\u9f20\u6807\u6307\u9488\u4e0a\u7684\u7269\u54c1");
+            return false;
+        }
         if (!container.getSlot(0)
             .getHasStack()) {
             notifyPlayer(player, "\u6279\u91cf\u89e3\u9898\u65e0\u6cd5\u5f00\u59cb\uff1a\u7814\u7a76\u53f0\u6ca1\u6709\u7b14\u4e0e\u58a8");
@@ -61,6 +68,8 @@ public final class BatchResearchController {
         lastActionAt = now - ACTION_DELAY;
         lastTickAt = 0;
         phaseStartedAt = now;
+        activeSourceSlot = -1;
+        returnSlot = -1;
 
         ItemStack tableStack = container.getSlot(NOTE_SLOT)
             .getStack();
@@ -104,6 +113,11 @@ public final class BatchResearchController {
                     finish(player);
                     return;
                 }
+                if (player.inventory.getItemStack() != null) {
+                    stop(player, "\u6279\u91cf\u89e3\u9898\u5df2\u505c\u6b62\uff1a\u9f20\u6807\u6307\u9488\u4e0a\u6709\u7269\u54c1", true);
+                    return;
+                }
+                activeSourceSlot = nextSlot;
                 shiftClick(minecraft, player, container, nextSlot);
                 activeNoteCounted = false;
                 phase = Phase.WAITING_FOR_INSERT;
@@ -114,6 +128,7 @@ public final class BatchResearchController {
                 ResearchNoteData insertedData = getData(tableStack);
                 if (insertedData != null) {
                     activeNoteCounted = !insertedData.complete;
+                    returnSlot = activeSourceSlot;
                     phase = Phase.SOLVING;
                     phaseStartedAt = now;
                 } else if (now - phaseStartedAt > SLOT_SYNC_TIMEOUT) {
@@ -129,8 +144,16 @@ public final class BatchResearchController {
                 boolean isComplete = stackData != null && stackData.complete;
                 if (isComplete) {
                     if (now - lastActionAt < ACTION_DELAY) return;
-                    shiftClick(minecraft, player, container, NOTE_SLOT);
-                    phase = Phase.WAITING_FOR_REMOVE;
+                    returnSlot = findReturnSlot(container, returnSlot);
+                    if (returnSlot < 0) {
+                        stop(
+                            player,
+                            "\u6279\u91cf\u89e3\u9898\u5df2\u505c\u6b62\uff1a\u80cc\u5305\u6ca1\u6709\u7a7a\u4f4d\u53d6\u56de\u5df2\u5b8c\u6210\u7b14\u8bb0",
+                            true);
+                        return;
+                    }
+                    normalClick(minecraft, player, container, NOTE_SLOT);
+                    phase = Phase.WAITING_FOR_PICKUP;
                     phaseStartedAt = now;
                     lastActionAt = now;
                 } else if (!container.getSlot(0)
@@ -143,13 +166,40 @@ public final class BatchResearchController {
                         true);
                 }
                 break;
-            case WAITING_FOR_REMOVE:
-                if (!noteSlot.getHasStack()) {
+            case WAITING_FOR_PICKUP:
+                ItemStack carriedStack = player.inventory.getItemStack();
+                if (!noteSlot.getHasStack() && isResearchNote(carriedStack)) {
+                    returnSlot = findReturnSlot(container, returnSlot);
+                    if (returnSlot < 0) {
+                        restoreCarriedNote(minecraft, player, container, noteSlot);
+                        stop(
+                            player,
+                            "\u6279\u91cf\u89e3\u9898\u5df2\u505c\u6b62\uff1a\u80cc\u5305\u6ca1\u6709\u7a7a\u4f4d\u53d6\u56de\u5df2\u5b8c\u6210\u7b14\u8bb0",
+                            true);
+                        return;
+                    }
+                    normalClick(minecraft, player, container, returnSlot);
+                    phase = Phase.WAITING_FOR_RETURN;
+                    phaseStartedAt = now;
+                    lastActionAt = now;
+                } else if (now - phaseStartedAt > SLOT_SYNC_TIMEOUT) {
+                    restoreCarriedNote(minecraft, player, container, noteSlot);
+                    stop(player, "\u6279\u91cf\u89e3\u9898\u5df2\u505c\u6b62\uff1a\u65e0\u6cd5\u4ece\u7814\u7a76\u53f0\u53d6\u4e0b\u7b14\u8bb0", true);
+                }
+                break;
+            case WAITING_FOR_RETURN:
+                carriedStack = player.inventory.getItemStack();
+                if (carriedStack == null && isResearchNote(
+                    container.getSlot(returnSlot)
+                        .getStack())) {
                     if (activeNoteCounted) completed++;
                     activeNoteCounted = false;
+                    activeSourceSlot = -1;
+                    returnSlot = -1;
                     phase = Phase.IDLE;
                     phaseStartedAt = now;
                 } else if (now - phaseStartedAt > SLOT_SYNC_TIMEOUT) {
+                    restoreCarriedNote(minecraft, player, container, noteSlot);
                     stop(
                         player,
                         "\u6279\u91cf\u89e3\u9898\u5df2\u505c\u6b62\uff1a\u65e0\u6cd5\u53d6\u56de\u5df2\u5b8c\u6210\u7b14\u8bb0\uff0c\u8bf7\u68c0\u67e5\u80cc\u5305\u7a7a\u95f4",
@@ -198,6 +248,20 @@ public final class BatchResearchController {
         return -1;
     }
 
+    private static int findReturnSlot(Container container, int preferredSlot) {
+        if (isEmptyPlayerSlot(container, preferredSlot)) return preferredSlot;
+        for (int slotIndex = FIRST_PLAYER_SLOT; slotIndex < container.inventorySlots.size(); slotIndex++) {
+            if (isEmptyPlayerSlot(container, slotIndex)) return slotIndex;
+        }
+        return -1;
+    }
+
+    private static boolean isEmptyPlayerSlot(Container container, int slotIndex) {
+        return slotIndex >= FIRST_PLAYER_SLOT && slotIndex < container.inventorySlots.size()
+            && !container.getSlot(slotIndex)
+                .getHasStack();
+    }
+
     private static ResearchNoteData getData(ItemStack stack) {
         if (!isResearchNote(stack)) return null;
         try {
@@ -215,11 +279,26 @@ public final class BatchResearchController {
         minecraft.playerController.windowClick(container.windowId, slotIndex, 0, 1, player);
     }
 
+    private static void normalClick(Minecraft minecraft, EntityPlayer player, Container container, int slotIndex) {
+        minecraft.playerController.windowClick(container.windowId, slotIndex, 0, 0, player);
+    }
+
+    private static void restoreCarriedNote(
+        Minecraft minecraft,
+        EntityPlayer player,
+        Container container,
+        Slot noteSlot) {
+        if (!noteSlot.getHasStack() && isResearchNote(player.inventory.getItemStack()))
+            normalClick(minecraft, player, container, NOTE_SLOT);
+    }
+
     private static void finish(EntityPlayer player) {
         running = false;
         phase = Phase.IDLE;
         windowId = -1;
         lastTickAt = 0;
+        activeSourceSlot = -1;
+        returnSlot = -1;
         notifyPlayer(player, "\u6279\u91cf\u89e3\u9898\u5df2\u5b8c\u6210\uff0c\u5171\u5904\u7406 " + completed + " \u5f20\u7b14\u8bb0");
     }
 
@@ -228,6 +307,8 @@ public final class BatchResearchController {
         phase = Phase.IDLE;
         windowId = -1;
         lastTickAt = 0;
+        activeSourceSlot = -1;
+        returnSlot = -1;
         if (notify) notifyPlayer(player, message);
     }
 

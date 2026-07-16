@@ -213,6 +213,7 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
     public void onGuiClosed() {
         BatchResearchController.stopOnClose();
         AutoResearch.Stop = true;
+        AutoResearch.stopActiveProcess();
         GetAllAspectButton.Stop = true;
         SetAspectButton.Stop = true;
         if (PID != -1) {

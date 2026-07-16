@@ -72,7 +72,7 @@ public class SolvesNote {
                         }
                     } else break;
                     try {
-                        sleep(500);
+                        sleep(250);
                     } catch (InterruptedException e) {
                     }
                 }

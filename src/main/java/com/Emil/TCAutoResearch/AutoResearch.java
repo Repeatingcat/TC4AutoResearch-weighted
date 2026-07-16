@@ -19,7 +19,11 @@ import thaumcraft.common.lib.research.ResearchManager;
 
 public class AutoResearch extends Thread {
 
+    private static final long POLL_INTERVAL = 100;
+    private static final long REPLAY_INTERVAL = 1000;
     public static boolean Stop = false;
+    private static volatile Process activeProcess;
+    private long lastReplayAt;
 
     public AutoResearch(EntityPlayer Player, Minecraft mc, GuiResearchTableHelperInterface obj) {
         player = Player;
@@ -44,16 +48,19 @@ public class AutoResearch extends Thread {
     public void run() {
         while (!Stop) {
             try {
-                sleep(1000);
+                sleep(POLL_INTERVAL);
+                long now = System.currentTimeMillis();
                 if (guiResearchTable.note != null &&
                     !guiResearchTable.note.complete &&
                     SolvesNote.LastNote != null &&
                     !SolvesNote.LastNote.isEmpty() &&
-                    LastNoteID != 0 )
+                    LastNoteID != 0 &&
+                    now - lastReplayAt >= REPLAY_INTERVAL)
                 {
                     var NewNote = guiResearchTable.note;
                     if (NewNote.hashCode()==LastNoteID) {
                         SolvesNote.SolvesNoteHandle(SolvesNote.LastNote);
+                        lastReplayAt = now;
                     }
                 }
                 if (guiResearchTable.note != null && !guiResearchTable.note.complete
@@ -89,7 +96,7 @@ public class AutoResearch extends Thread {
                                 .next();
                             GuiResearchTableHelperInterfaceObj.combine(First.getKey(), First.getValue());
                             try {
-                                sleep(100);
+                                sleep(50);
                             } catch (InterruptedException e) {}
                         });
                     }
@@ -128,22 +135,10 @@ public class AutoResearch extends Thread {
                     ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch.exe").toString(), WaitSend);
                     //ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch\\bin\\Debug\\net9.0\\AutoResearch.exe").toString(),WaitSend);
                     //ProcessBuilder builder = new ProcessBuilder(new File("C:\\Users\\GongSi\\Desktop\\TC4Helper-master\\AutoResearch\\bin\\Debug\\net9.0\\AutoResearch.exe").toString(),WaitSend);
+                    Process process = null;
                     try {
-                        Process process = builder.start();
-
-                        Process proc = Runtime.getRuntime().exec("tasklist");
-                        BufferedReader reader2 = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-                        String line2;
-                        while ((line2 = reader2.readLine()) != null) {
-                            if (line2.contains("AutoResearch")) {
-                                String[] parts = line2.trim().split("\\s+");
-                                if (parts.length >= 2) {
-                                    PID = Integer.parseInt(parts[1]);
-                                    break;
-                                }
-                            }
-                        }
-
+                        process = builder.start();
+                        setActiveProcess(process);
 
                         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                         String line;
@@ -158,18 +153,36 @@ public class AutoResearch extends Thread {
                             SolvesNote.SolvesNoteHandle(line);
                         }
                         int exitCode = process.waitFor();
+                        lastReplayAt = System.currentTimeMillis();
                         if (!gotSolution) ResearchDebugState.recordNoSolution(exitCode);
                     } catch (Exception e) {
                         ResearchDebugState.recordFailure(e);
                         System.out.println(e.getMessage());
                         System.out.println(e.getStackTrace());
+                    } finally {
+                        clearActiveProcess(process);
                     }
                 }
             } catch (Exception e) {
                 ResearchDebugState.recordFailure(e);
-            }finally {
-                PID=-1;
             }
         }
+    }
+
+    public static void stopActiveProcess() {
+        Process process;
+        synchronized (AutoResearch.class) {
+            process = activeProcess;
+            activeProcess = null;
+        }
+        if (process != null) process.destroy();
+    }
+
+    private static synchronized void setActiveProcess(Process process) {
+        activeProcess = process;
+    }
+
+    private static synchronized void clearActiveProcess(Process process) {
+        if (activeProcess == process) activeProcess = null;
     }
 }
