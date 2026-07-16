@@ -124,7 +124,7 @@ namespace AutoResearch
             Notes = args[0].Split('^');
             if (Notes.Length >= 3)
             {
-                AspectCostPolicy.Configure(Notes.Length >= 4 ? Notes[3] : null);
+                AspectCostPolicy.Configure(Notes.Length >= 4 ? Notes[3] : null, Notes.Length >= 5 ? Notes[4] : null);
                 foreach (var item in Notes[1].Split('&', StringSplitOptions.RemoveEmptyEntries))
                 {
                     var TempItem = item.Split(':');
@@ -191,11 +191,11 @@ namespace AutoResearch
 
                 if (TargeItem.Count == 2)
                 {
-                    var exactResult = WeightedPathSolver.Solve(Hexes, TargeItem, AspectMap);
+                    var exactResult = WeightedPathSolver.Solve(Hexes, TargeItem, AspectMap, UserAspect);
                     if (exactResult.HasSolution && exactResult.IsOptimal)
                     {
                         Console.WriteLine(
-                            $"#stats|mode=exact|optimal=true|expanded={exactResult.ExpandedStates}|generated={exactResult.GeneratedStates}|candidates=1|elapsed={exactResult.ElapsedMilliseconds}");
+                            $"#stats|mode=exact-{AspectCostPolicy.PreferenceName}|optimal=true|expanded={exactResult.ExpandedStates}|generated={exactResult.GeneratedStates}|candidates=1|elapsed={exactResult.ElapsedMilliseconds}");
                         Console.WriteLine(string.Join(
                             "",
                             exactResult.Solution.Select(item => $"{item.Key.q}:{item.Key.r}|{item.Value}&")));
@@ -724,8 +724,8 @@ namespace AutoResearch
                 }
                 else if (distinctSolves.Length > 1)
                 {
-                    Solver = distinctSolves
-                        .OrderBy(solver => AspectCostPolicy.CalculateCost(solver.Values))
+                    Solver = AspectCostPolicy
+                        .OrderSolutions(distinctSolves, solver => solver.Values, UserAspect)
                         .ThenBy(solver => solver.Values.Distinct().Count())
                         .ThenBy(solver => string.Join(
                             "&",
@@ -897,7 +897,7 @@ namespace AutoResearch
                 if (Solver.Count != 0)
                 {
                     Console.WriteLine(
-                        $"#stats|mode=hybrid|optimal=false|expanded=0|generated=0|candidates={distinctSolves.Length}|elapsed={solveTimer.ElapsedMilliseconds}");
+                        $"#stats|mode=hybrid-{AspectCostPolicy.PreferenceName}|optimal=false|expanded=0|generated=0|candidates={distinctSolves.Length}|elapsed={solveTimer.ElapsedMilliseconds}");
                     StringBuilder RetString = new StringBuilder();
                     foreach (var item in Solver)
                     {
@@ -962,7 +962,7 @@ namespace AutoResearch
             //var Success = new List<(Dictionary<Hex, string>, Dictionary<string, int>)>();
             //var Fail = new List<(Dictionary<Hex, string>, Dictionary<string, int>)>();
             //var AllTry = new List<(List<Dictionary<Hex, string>> Success, List<Dictionary<Hex, List<string>>> Fail)>();
-            foreach (var item in OriSolver.OrderBy(solver => AspectCostPolicy.CalculateCost(solver.Values)))
+            foreach (var item in AspectCostPolicy.OrderSolutions(OriSolver, solver => solver.Values, UserAspect))
             {
                 List<((string, string), Dictionary<Hex, string>)> TempWannaPath = new();
                 var First = item.First();

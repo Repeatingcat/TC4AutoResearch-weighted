@@ -130,7 +130,7 @@ public class AutoResearch extends Thread {
                         if (Entry.aspect != null) WaitSend += Path + ":" + Entry.aspect.getTag() + "&";
                         else WaitSend += Path + "&";
                     }
-                    WaitSend += "^" + Config.serializeAspectCosts();
+                    WaitSend += "^" + Config.serializeAspectCosts() + "^" + Config.getSolverPreference();
                     ResearchDebugState.begin(guiResearchTable.note.hashCode(), Config.getAspectCostsSnapshot());
                     ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch.exe").toString(), WaitSend);
                     //ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch\\bin\\Debug\\net9.0\\AutoResearch.exe").toString(),WaitSend);

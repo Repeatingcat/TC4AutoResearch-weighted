@@ -22,6 +22,7 @@ public class Config {
     private static final int UNKNOWN_ASPECT_COST = 16;
 
     public static boolean AutoResearch;
+    public static boolean InventoryPriority;
     public static Configuration config;
     public static File ConbfigFilePath;
     public static final Map<String, Integer> AspectCosts = new LinkedHashMap<>();
@@ -32,6 +33,11 @@ public class Config {
         config = new Configuration(ConbfigFilePath);
         AutoResearch = config
             .getBoolean("AutoResearch", Configuration.CATEGORY_GENERAL, false, "Enable the Research Auto Start");
+        InventoryPriority = config.getBoolean(
+            "InventoryPriority",
+            Configuration.CATEGORY_GENERAL,
+            false,
+            "Prefer aspects with enough current inventory before comparing configured path costs.");
         loadAspectCosts(null);
         var nativeSolver = new File("AutoResearch.exe");
         if (!nativeMatchesResource(nativeSolver)) extractNativeFromZip();
@@ -43,6 +49,8 @@ public class Config {
     public static void SaveConfiguration() {
         config.get(Configuration.CATEGORY_GENERAL, "AutoResearch", false)
             .set(AutoResearch);
+        config.get(Configuration.CATEGORY_GENERAL, "InventoryPriority", false)
+            .set(InventoryPriority);
         config.save();
     }
 
@@ -62,6 +70,10 @@ public class Config {
         return serialized.toString();
     }
 
+    public static String getSolverPreference() {
+        return InventoryPriority ? "inventory" : "weighted";
+    }
+
     public static synchronized Map<String, Integer> getAspectCostsSnapshot() {
         return new LinkedHashMap<>(AspectCosts);
     }
@@ -71,13 +83,16 @@ public class Config {
         return cost == null ? UNKNOWN_ASPECT_COST : cost;
     }
 
-    public static synchronized void saveAspectCosts(Map<String, Integer> costs) {
+    public static synchronized void saveAspectCosts(Map<String, Integer> costs, boolean inventoryPriority) {
         for (Map.Entry<String, Integer> entry : costs.entrySet()) {
             int cost = Math.max(1, entry.getValue());
             config.get(ASPECT_COST_CATEGORY, entry.getKey(), cost)
                 .set(cost);
             AspectCosts.put(entry.getKey(), cost);
         }
+        InventoryPriority = inventoryPriority;
+        config.get(Configuration.CATEGORY_GENERAL, "InventoryPriority", false)
+            .set(InventoryPriority);
         config.save();
     }
 

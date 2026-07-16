@@ -18,6 +18,7 @@ public static class WeightedPathSolver
         IReadOnlyList<Hex> hexes,
         IReadOnlyDictionary<Hex, string> targets,
         IReadOnlyDictionary<string, List<string>> aspectMap,
+        IReadOnlyDictionary<string, int> inventory,
         int timeBudgetMilliseconds = 750)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -76,14 +77,11 @@ public static class WeightedPathSolver
                 }
                 else
                 {
-                    foreach (var nextAspect in compatibleAspects
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .OrderBy(AspectCostPolicy.GetCost)
-                        .ThenBy(tag => tag, StringComparer.OrdinalIgnoreCase))
-                        AddState(nextAspect, AspectCostPolicy.GetCost(nextAspect));
+                    foreach (var nextAspect in AspectCostPolicy.OrderCandidates(compatibleAspects, inventory))
+                        AddState(nextAspect, AspectCostPolicy.GetTraversalCost(nextAspect, inventory));
                 }
 
-                void AddState(string nextAspect, int stepCost)
+                void AddState(string nextAspect, long stepCost)
                 {
                     var next = new SearchState(nextPosition, nextAspect, current.Visited | bit);
                     var nextCost = currentCost + stepCost;

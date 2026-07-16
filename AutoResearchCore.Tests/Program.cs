@@ -46,15 +46,57 @@ var aspectMap = new Dictionary<string, List<string>>
 };
 
 AspectCostPolicy.Configure("x:2&y:2&c:2&d:256&");
-var exact = WeightedPathSolver.Solve(hexes, targets, aspectMap);
+var exact = WeightedPathSolver.Solve(hexes, targets, aspectMap, inventory);
 Assert(exact.HasSolution, "The exact solver should find the c path.");
 Assert(exact.IsOptimal, "The bounded two-terminal search should prove this small solution optimal.");
 Assert(exact.Solution.Single().Value == "c", "The exact solver should choose the cheaper c path.");
 
 AspectCostPolicy.Configure("x:2&y:2&c:256&d:2&");
-exact = WeightedPathSolver.Solve(hexes, targets, aspectMap);
+exact = WeightedPathSolver.Solve(hexes, targets, aspectMap, inventory);
 Assert(exact.HasSolution, "The exact solver should find the d path.");
 Assert(exact.IsOptimal, "The reversed two-terminal solution should also be proven optimal.");
 Assert(exact.Solution.Single().Value == "d", "Reversing costs should select the d path.");
+
+AspectCostPolicy.Configure("cheap:2&expensive:256&", "inventory");
+var scarceInventory = new Dictionary<string, int>
+{
+    ["cheap"] = 0,
+    ["expensive"] = 64,
+};
+ordered = AspectCostPolicy.OrderCandidates(["cheap", "expensive"], scarceInventory).ToArray();
+Assert(ordered.SequenceEqual(["expensive", "cheap"]), "Inventory mode should prefer an abundant aspect.");
+
+var solutions = new[]
+{
+    new[] { "cheap", "cheap" },
+    new[] { "expensive", "expensive" },
+};
+var inventorySolution = AspectCostPolicy
+    .OrderSolutions(solutions, solution => solution, scarceInventory)
+    .First();
+Assert(inventorySolution.SequenceEqual(["expensive", "expensive"]), "Inventory mode should avoid shortages.");
+Assert(AspectCostPolicy.CalculateShortage(solutions[0], scarceInventory) == 2, "Shortages should be counted.");
+
+var sufficientInventory = new Dictionary<string, int>
+{
+    ["cheap"] = 2,
+    ["expensive"] = 64,
+};
+inventorySolution = AspectCostPolicy
+    .OrderSolutions(solutions, solution => solution, sufficientInventory)
+    .First();
+Assert(
+    inventorySolution.SequenceEqual(["expensive", "expensive"]),
+    "Inventory mode should prefer the solution with more remaining stock.");
+
+AspectCostPolicy.Configure("x:2&y:2&c:2&d:256&", "inventory");
+var pathInventory = new Dictionary<string, int>(inventory)
+{
+    ["c"] = 0,
+    ["d"] = 64,
+};
+exact = WeightedPathSolver.Solve(hexes, targets, aspectMap, pathInventory);
+Assert(exact.HasSolution, "Inventory-aware exact search should find a path.");
+Assert(exact.Solution.Single().Value == "d", "Inventory-aware exact search should avoid a missing aspect.");
 
 Console.WriteLine("AspectCostPolicy tests passed.");

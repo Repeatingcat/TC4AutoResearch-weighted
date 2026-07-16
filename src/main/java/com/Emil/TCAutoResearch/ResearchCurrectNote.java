@@ -126,7 +126,7 @@ public class ResearchCurrectNote {
                     if (Entry.aspect != null) WaitSend += Path + ":" + Entry.aspect.getTag() + "&";
                     else WaitSend += Path + "&";
                 }
-                WaitSend += "^" + Config.serializeAspectCosts();
+                WaitSend += "^" + Config.serializeAspectCosts() + "^" + Config.getSolverPreference();
                 //ProcessBuilder builder = new ProcessBuilder(new File("C:\\Users\\GongSi\\Desktop\\TC4Helper-master\\AutoResearch\\bin\\Debug\\net9.0\\AutoResearch.exe").toString(),WaitSend);
                 ResearchDebugState.begin(guiResearchTable.note.hashCode(), Config.getAspectCostsSnapshot());
                 ProcessBuilder builder = new ProcessBuilder(new File("AutoResearch.exe").toString(), WaitSend);

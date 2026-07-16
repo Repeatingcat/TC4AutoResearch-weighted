@@ -159,6 +159,10 @@ public class GuiResearchDebug extends GuiScreen {
     }
 
     private String modeText(String mode) {
+        if ("exact-weighted".equals(mode)) return "\u7cbe\u786e/\u6743\u91cd";
+        if ("exact-inventory".equals(mode)) return "\u7cbe\u786e/\u5e93\u5b58";
+        if ("hybrid-weighted".equals(mode)) return "\u6df7\u5408/\u6743\u91cd";
+        if ("hybrid-inventory".equals(mode)) return "\u6df7\u5408/\u5e93\u5b58";
         if ("exact".equals(mode)) return "\u7cbe\u786e";
         if ("hybrid".equals(mode)) return "\u6df7\u5408";
         return "-";

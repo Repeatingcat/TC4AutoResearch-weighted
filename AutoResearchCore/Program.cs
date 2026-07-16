@@ -68,7 +68,7 @@ namespace AutoResearch
             //    Notes = args[0].Split('^');
             if (Notes.Length >= 3)
             {
-                AspectCostPolicy.Configure(Notes.Length >= 4 ? Notes[3] : null);
+                AspectCostPolicy.Configure(Notes.Length >= 4 ? Notes[3] : null, Notes.Length >= 5 ? Notes[4] : null);
                 foreach (var item in Notes[1].Split('&', StringSplitOptions.RemoveEmptyEntries))
                 {
                     var TempItem = item.Split(':');
@@ -338,8 +338,8 @@ namespace AutoResearch
                                         }
                                     }
                                 }
-                                var orderedSolves = Solves
-                                    .OrderBy(solve => AspectCostPolicy.CalculateCost(solve.Item1.Values))
+                                var orderedSolves = AspectCostPolicy
+                                    .OrderSolutions(Solves, solve => solve.Item1.Values, UserAspect)
                                     .ThenBy(solve => solve.Item3.Values.Sum());
                                 var Find = orderedSolves.FirstOrDefault(x => x.Item3.Count == 0);
                                 if (Find.Item1 != null)
