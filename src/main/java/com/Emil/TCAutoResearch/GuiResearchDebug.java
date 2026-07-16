@@ -5,8 +5,6 @@ import java.util.List;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 
-import thaumcraft.api.aspects.Aspect;
-
 public class GuiResearchDebug extends GuiScreen {
 
     private static final int ROWS_PER_PAGE = 8;
@@ -110,9 +108,7 @@ public class GuiResearchDebug extends GuiScreen {
     }
 
     private String aspectName(String tag) {
-        Aspect aspect = Aspect.getAspect(tag);
-        String name = aspect == null ? tag : aspect.getName();
-        return name + " (" + tag + ")";
+        return AspectNames.getDisplayName(tag);
     }
 
     private void updatePageButtons() {

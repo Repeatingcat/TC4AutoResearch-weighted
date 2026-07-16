@@ -12,11 +12,13 @@ import net.minecraft.client.gui.GuiTextField;
 
 import org.lwjgl.input.Keyboard;
 
-import thaumcraft.api.aspects.Aspect;
-
 public class GuiAspectCosts extends GuiScreen {
 
-    private static final int ROWS_PER_PAGE = 6;
+    private static final int MIN_ROWS_PER_PAGE = 4;
+    private static final int MAX_ROWS_PER_PAGE = 24;
+    private static final int ROW_START = 82;
+    private static final int ROW_HEIGHT = 22;
+    private static final int BOTTOM_RESERVED = 64;
 
     private final GuiScreen parent;
     private final Map<String, Integer> pendingCosts = new LinkedHashMap<>();
@@ -24,6 +26,7 @@ public class GuiAspectCosts extends GuiScreen {
     private final List<GuiTextField> costFields = new ArrayList<>();
     private GuiTextField searchField;
     private int page;
+    private int rowsPerPage;
 
     public GuiAspectCosts(GuiScreen parent) {
         this.parent = parent;
@@ -35,6 +38,9 @@ public class GuiAspectCosts extends GuiScreen {
         Keyboard.enableRepeatEvents(true);
         buttonList.clear();
         int center = width / 2;
+        rowsPerPage = Math.max(
+            MIN_ROWS_PER_PAGE,
+            Math.min(MAX_ROWS_PER_PAGE, (height - ROW_START - BOTTOM_RESERVED) / ROW_HEIGHT));
         searchField = new GuiTextField(fontRendererObj, center - 95, 30, 190, 18);
         searchField.setMaxStringLength(64);
 
@@ -117,11 +123,17 @@ public class GuiAspectCosts extends GuiScreen {
         drawCenteredString(fontRendererObj, "\u8981\u7d20\u6743\u91cd", center, 14, 0xFFFFFF);
         fontRendererObj.drawString("\u641c\u7d22", center - 128, 35, 0xA0A0A0);
         searchField.drawTextBox();
-        fontRendererObj.drawString("\u8981\u7d20", left + 12, 55, 0xA0A0A0);
-        fontRendererObj.drawString("\u6743\u91cd", right - 70, 55, 0xA0A0A0);
+        drawCenteredString(
+            fontRendererObj,
+            "\u6743\u91cd\u8d8a\u9ad8\uff0c\u5728\u89e3\u7b14\u8bb0\u65f6\u8d8a\u4e0d\u4f1a\u88ab\u4f7f\u7528\u5230",
+            center,
+            53,
+            0xD0B878);
+        fontRendererObj.drawString("\u8981\u7d20", left + 12, 69, 0xA0A0A0);
+        fontRendererObj.drawString("\u6743\u91cd", right - 70, 69, 0xA0A0A0);
 
-        int from = page * ROWS_PER_PAGE;
-        int y = 70;
+        int from = page * rowsPerPage;
+        int y = ROW_START;
         boolean valid = true;
         for (int i = 0; i < costFields.size(); i++) {
             String tag = filteredTags.get(from + i);
@@ -135,7 +147,7 @@ public class GuiAspectCosts extends GuiScreen {
             field.setTextColor(fieldValid ? 0xE0E0E0 : 0xFF6060);
             valid &= fieldValid;
             field.drawTextBox();
-            y += 22;
+            y += ROW_HEIGHT;
         }
         ((GuiButton) buttonList.get(0)).enabled = valid;
         drawCenteredString(fontRendererObj, (page + 1) + " / " + pageCount(), center, height - 46, 0x909090);
@@ -167,23 +179,23 @@ public class GuiAspectCosts extends GuiScreen {
         costFields.clear();
         int center = width / 2;
         int right = center + Math.min(180, width / 2 - 8);
-        int from = page * ROWS_PER_PAGE;
-        int to = Math.min(from + ROWS_PER_PAGE, filteredTags.size());
-        int y = 70;
+        int from = page * rowsPerPage;
+        int to = Math.min(from + rowsPerPage, filteredTags.size());
+        int y = ROW_START;
         for (int i = from; i < to; i++) {
             String tag = filteredTags.get(i);
             GuiTextField field = new GuiTextField(fontRendererObj, right - 74, y, 62, 18);
             field.setMaxStringLength(10);
             field.setText(Integer.toString(pendingCosts.get(tag)));
             costFields.add(field);
-            y += 22;
+            y += ROW_HEIGHT;
         }
         ((GuiButton) buttonList.get(3)).enabled = page > 0;
         ((GuiButton) buttonList.get(4)).enabled = page + 1 < pageCount();
     }
 
     private void commitVisibleFields() {
-        int from = page * ROWS_PER_PAGE;
+        int from = page * rowsPerPage;
         for (int i = 0; i < costFields.size(); i++) {
             String tag = filteredTags.get(from + i);
             try {
@@ -195,7 +207,7 @@ public class GuiAspectCosts extends GuiScreen {
     }
 
     private int pageCount() {
-        return Math.max(1, (filteredTags.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
+        return Math.max(1, (filteredTags.size() + rowsPerPage - 1) / rowsPerPage);
     }
 
     private boolean isPositiveInteger(String text) {
@@ -207,8 +219,6 @@ public class GuiAspectCosts extends GuiScreen {
     }
 
     private String aspectName(String tag) {
-        Aspect aspect = Aspect.getAspect(tag);
-        String name = aspect == null ? tag : aspect.getName();
-        return name + " (" + tag + ")";
+        return AspectNames.getDisplayName(tag);
     }
 }
