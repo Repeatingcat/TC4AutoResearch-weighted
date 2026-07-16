@@ -22,6 +22,9 @@ public class GuiAspectCosts extends GuiScreen {
     private static final int ROW_START = 82;
     private static final int ROW_HEIGHT = 22;
     private static final int BOTTOM_RESERVED = 64;
+    private static final int PANEL_COLOR = 0xF04A4E52;
+    private static final int ROW_COLOR = 0x405F6469;
+    private static final int ROW_ALT_COLOR = 0x80646A70;
 
     private final GuiScreen parent;
     private final Map<String, Integer> pendingCosts = new LinkedHashMap<>();
@@ -123,9 +126,9 @@ public class GuiAspectCosts extends GuiScreen {
         int panelHalfWidth = Math.min(180, width / 2 - 8);
         int left = center - panelHalfWidth;
         int right = center + panelHalfWidth;
-        drawRect(left, 8, right, height - 58, 0xD0101010);
+        drawRect(left, 8, right, height - 6, PANEL_COLOR);
         drawCenteredString(fontRendererObj, "\u8981\u7d20\u6743\u91cd", center, 14, 0xFFFFFF);
-        fontRendererObj.drawString("\u641c\u7d22", center - 128, 35, 0xA0A0A0);
+        fontRendererObj.drawString("\u641c\u7d22", center - 128, 35, 0xE0E0E0);
         searchField.drawTextBox();
         drawCenteredString(
             fontRendererObj,
@@ -133,8 +136,8 @@ public class GuiAspectCosts extends GuiScreen {
             center,
             53,
             0xD0B878);
-        fontRendererObj.drawString("\u8981\u7d20", left + 34, 69, 0xA0A0A0);
-        fontRendererObj.drawString("\u6743\u91cd", right - 70, 69, 0xA0A0A0);
+        fontRendererObj.drawString("\u8981\u7d20", left + 34, 69, 0xE0E0E0);
+        fontRendererObj.drawString("\u6743\u91cd", right - 70, 69, 0xE0E0E0);
 
         int from = page * rowsPerPage;
         int y = ROW_START;
@@ -143,6 +146,7 @@ public class GuiAspectCosts extends GuiScreen {
             String tag = filteredTags.get(from + i);
             GuiTextField field = costFields.get(i);
             Aspect aspect = Aspect.getAspect(tag);
+            drawRect(left + 6, y - 1, right - 6, y + 20, i % 2 == 0 ? ROW_ALT_COLOR : ROW_COLOR);
             if (aspect != null) UtilsFX.drawTag(left + 10, y + 1, aspect);
             fontRendererObj.drawString(
                 fontRendererObj.trimStringToWidth(aspectName(tag), field.xPosition - left - 42),
@@ -156,7 +160,7 @@ public class GuiAspectCosts extends GuiScreen {
             y += ROW_HEIGHT;
         }
         ((GuiButton) buttonList.get(0)).enabled = valid;
-        drawCenteredString(fontRendererObj, (page + 1) + " / " + pageCount(), center, height - 46, 0x909090);
+        drawCenteredString(fontRendererObj, (page + 1) + " / " + pageCount(), center, height - 46, 0xD0D0D0);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
