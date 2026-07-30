@@ -50,6 +50,7 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
     GuiButtonExt costsButton;
     GuiButtonExt batchButton;
     GuiButtonExt solverModeButton;
+    GuiButtonExt researchListButton;
 
     GuiTextField inputField;
     SetAspectButton confirmButton;
@@ -118,10 +119,18 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
             80,
             25,
             BatchResearchController.getButtonText());
+        researchListButton = new GuiButtonExt(
+            110,
+            sideButtonX,
+            super.guiTop + 255 / 2 + 50,
+            80,
+            25,
+            ResearchPlanController.getButtonText());
         this.buttonList.add(solverModeButton);
         this.buttonList.add(debugButton);
         this.buttonList.add(costsButton);
         this.buttonList.add(batchButton);
+        this.buttonList.add(researchListButton);
 
         this.inputField = new GuiTextField(this.fontRendererObj, 0, 0, 25, 10);
         this.inputField.setMaxStringLength(50);
@@ -215,9 +224,14 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
                     autoResearch = new AutoResearch(player, this.mc, this);
                     autoResearch.start();
                 }
+                ResearchPlanController.stopOnClose();
                 BatchResearchController.start(mc, player, this.inventorySlots);
             }
             batchButton.displayString = BatchResearchController.getButtonText();
+        } else if (Targetbutton.id == 110) {
+            if (ResearchPlanController.isRunning()) ResearchPlanController.stopByUser(player);
+            else mc.displayGuiScreen(new GuiResearchList(this, player, this.inventorySlots));
+            researchListButton.displayString = ResearchPlanController.getButtonText();
         } else mc.thePlayer.addChatMessage(new ChatComponentText("笔记重新解锁失败,没有放入笔记"));
 
     }
@@ -225,6 +239,7 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
     @Override
     public void onGuiClosed() {
         BatchResearchController.stopOnClose();
+        ResearchPlanController.stopOnClose();
         AutoResearch.Stop = true;
         AutoResearch.stopActiveProcess();
         GetAllAspectButton.Stop = true;
@@ -295,7 +310,9 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
     @Inject(method = "func_73863_a", at = @At("Tail"))
     public void drawScreenTail(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
         BatchResearchController.tick(mc, player, this.inventorySlots);
+        ResearchPlanController.tick(mc, player, this.inventorySlots);
         if (batchButton != null) batchButton.displayString = BatchResearchController.getButtonText();
+        if (researchListButton != null) researchListButton.displayString = ResearchPlanController.getButtonText();
         if (this.inputField != null && this.inputField.getVisible()) {
             this.inputField.drawTextBox();
         }
