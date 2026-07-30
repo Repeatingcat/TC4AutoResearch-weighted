@@ -40,6 +40,10 @@ public class GuiResearchList extends GuiScreen {
     private static final int SOURCE_BOOK_WIDTH = 512;
     private static final int SOURCE_BOOK_HEIGHT = 352;
     private static final int ROW_HEIGHT = 27;
+    private static final int LIST_TOP_OFFSET = 88;
+    private static final int DROPDOWN_NONE = 0;
+    private static final int DROPDOWN_MOD = 4;
+    private static final int DROPDOWN_CATEGORY = 5;
     private static final String ALL = "";
 
     private final GuiScreen parent;
@@ -58,6 +62,8 @@ public class GuiResearchList extends GuiScreen {
     private String selectedMod = ALL;
     private String selectedCategory = ALL;
     private int page;
+    private int openDropdown = DROPDOWN_NONE;
+    private int dropdownPage;
     private int rowsPerColumn;
     private int bookLeft;
     private int bookTop;
@@ -76,7 +82,7 @@ public class GuiResearchList extends GuiScreen {
         Keyboard.enableRepeatEvents(true);
         buttonList.clear();
         calculateBookBounds();
-        rowsPerColumn = Math.max(3, Math.min(8, (bookHeight - 132) / ROW_HEIGHT));
+        rowsPerColumn = Math.max(3, Math.min(7, (bookHeight - 150) / ROW_HEIGHT));
 
         searchField = new GuiTextField(fontRendererObj, width / 2 - 92, bookTop + 31, 184, 16);
         searchField.setMaxStringLength(80);
@@ -84,12 +90,12 @@ public class GuiResearchList extends GuiScreen {
         searchField.setTextColor(0x3C2515);
 
         int half = bookWidth / 2;
-        int filterWidth = Math.min(174, half - 54);
+        int filterWidth = Math.min(174, half - 72);
         int navWidth = Math.max(50, Math.min(68, half / 3));
         int commandWidth = Math.max(58, half - navWidth - 42);
-        modButton = new BookButton(4, bookLeft + 30, bookTop + 52, filterWidth, 18, modButtonText());
+        modButton = new BookButton(4, bookLeft + 36, bookTop + 52, filterWidth, 18, modButtonText());
         categoryButton =
-            new BookButton(5, bookLeft + half + 24, bookTop + 52, filterWidth, 18, categoryButtonText());
+            new BookButton(5, bookLeft + half + 36, bookTop + 52, filterWidth, 18, categoryButtonText());
         buttonList.add(
             new BookButton(0, bookLeft + 24 + navWidth, bookTop + bookHeight - 27, commandWidth, 18, "\u5f00\u59cb\u7814\u7a76"));
         buttonList.add(
@@ -130,19 +136,19 @@ public class GuiResearchList extends GuiScreen {
         } else if (button.id == 3 && page + 1 < pageCount()) {
             page++;
         } else if (button.id == 4) {
-            selectedMod = nextFilter(modFilters, selectedMod);
-            modButton.displayString = modButtonText();
-            resetAndFilter();
+            toggleDropdown(DROPDOWN_MOD);
         } else if (button.id == 5) {
-            selectedCategory = nextFilter(categoryFilters, selectedCategory);
-            categoryButton.displayString = categoryButtonText();
-            resetAndFilter();
+            toggleDropdown(DROPDOWN_CATEGORY);
         }
     }
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
         if (keyCode == 1) {
+            if (openDropdown != DROPDOWN_NONE) {
+                openDropdown = DROPDOWN_NONE;
+                return;
+            }
             mc.displayGuiScreen(parent);
             return;
         }
@@ -156,13 +162,25 @@ public class GuiResearchList extends GuiScreen {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) {
+        if (openDropdown != DROPDOWN_NONE) {
+            if (isMouseOver(modButton, mouseX, mouseY)) {
+                toggleDropdown(DROPDOWN_MOD);
+                return;
+            }
+            if (isMouseOver(categoryButton, mouseX, mouseY)) {
+                toggleDropdown(DROPDOWN_CATEGORY);
+                return;
+            }
+            handleDropdownClick(mouseX, mouseY);
+            return;
+        }
         super.mouseClicked(mouseX, mouseY, mouseButton);
         searchField.mouseClicked(mouseX, mouseY, mouseButton);
-        int listTop = bookTop + 78;
+        int listTop = bookTop + LIST_TOP_OFFSET;
         int half = bookWidth / 2;
         for (int column = 0; column < 2; column++) {
-            int left = bookLeft + 17 + column * half;
-            int right = bookLeft + (column + 1) * half - 17;
+            int left = bookLeft + 31 + column * half;
+            int right = bookLeft + (column + 1) * half - 31;
             if (mouseX < left || mouseX >= right || mouseY < listTop) continue;
             int row = (mouseY - listTop) / ROW_HEIGHT;
             int index = page * itemsPerPage() + column * rowsPerColumn + row;
@@ -204,12 +222,13 @@ public class GuiResearchList extends GuiScreen {
             fontRendererObj,
             (page + 1) + "/" + pageCount() + " \u00b7 " + filtered.size(),
             center,
-            bookTop + 66,
+            bookTop + 74,
             0x6B5035);
         ((GuiButton) buttonList.get(0)).enabled = canStart;
         ((GuiButton) buttonList.get(2)).enabled = page > 0;
         ((GuiButton) buttonList.get(3)).enabled = page + 1 < pageCount();
         super.drawScreen(mouseX, mouseY, partialTicks);
+        if (openDropdown != DROPDOWN_NONE) drawDropdown(mouseX, mouseY);
     }
 
     @Override
@@ -244,9 +263,9 @@ public class GuiResearchList extends GuiScreen {
         int column = offset / rowsPerColumn;
         int row = offset % rowsPerColumn;
         int half = bookWidth / 2;
-        int x = bookLeft + 20 + column * half;
-        int y = bookTop + 78 + row * ROW_HEIGHT;
-        int entryWidth = half - 40;
+        int x = bookLeft + 36 + column * half;
+        int y = bookTop + LIST_TOP_OFFSET + row * ROW_HEIGHT;
+        int entryWidth = half - 72;
         if (item.key.equals(selectedKey)) {
             drawRect(x - 5, y, x + entryWidth + 5, y + ROW_HEIGHT - 2, 0x66563422);
             drawRect(x - 5, y + ROW_HEIGHT - 3, x + entryWidth + 5, y + ROW_HEIGHT - 2, 0xAA6D4A2E);
@@ -326,11 +345,6 @@ public class GuiResearchList extends GuiScreen {
         applyFilter();
     }
 
-    private String nextFilter(List<String> filters, String current) {
-        int index = filters.indexOf(current);
-        return filters.get((index + 1) % filters.size());
-    }
-
     private int itemsPerPage() {
         return rowsPerColumn * 2;
     }
@@ -375,11 +389,146 @@ public class GuiResearchList extends GuiScreen {
 
     private String modButtonText() {
         String name = selectedMod.isEmpty() ? "\u5168\u90e8" : modNames.get(selectedMod);
-        return "\u6a21\u7ec4: " + name;
+        return "\u6a21\u7ec4: " + name + " \u25be";
     }
 
     private String categoryButtonText() {
-        return "\u5206\u7c7b: " + (selectedCategory.isEmpty() ? "\u5168\u90e8" : categoryName(selectedCategory));
+        return "\u5206\u7c7b: " + (selectedCategory.isEmpty() ? "\u5168\u90e8" : categoryName(selectedCategory))
+            + " \u25be";
+    }
+
+    private void toggleDropdown(int dropdown) {
+        if (openDropdown == dropdown) {
+            openDropdown = DROPDOWN_NONE;
+            return;
+        }
+        openDropdown = dropdown;
+        dropdownPage = selectedDropdownPage();
+    }
+
+    private List<String> dropdownFilters() {
+        return openDropdown == DROPDOWN_MOD ? modFilters : categoryFilters;
+    }
+
+    private int dropdownRows() {
+        return Math.max(3, (dropdownBottom() - dropdownTop() - 43) / 18);
+    }
+
+    private int dropdownItemsPerPage() {
+        return dropdownRows() * 2;
+    }
+
+    private int dropdownPageCount() {
+        return Math.max(1, (dropdownFilters().size() + dropdownItemsPerPage() - 1) / dropdownItemsPerPage());
+    }
+
+    private int selectedDropdownPage() {
+        List<String> filters = dropdownFilters();
+        String selected = openDropdown == DROPDOWN_MOD ? selectedMod : selectedCategory;
+        int index = Math.max(0, filters.indexOf(selected));
+        return index / dropdownItemsPerPage();
+    }
+
+    private int dropdownLeft() {
+        return bookLeft + 54;
+    }
+
+    private int dropdownRight() {
+        return bookLeft + bookWidth - 54;
+    }
+
+    private int dropdownTop() {
+        return bookTop + 78;
+    }
+
+    private int dropdownBottom() {
+        return bookTop + bookHeight - 48;
+    }
+
+    private void drawDropdown(int mouseX, int mouseY) {
+        int left = dropdownLeft();
+        int right = dropdownRight();
+        int top = dropdownTop();
+        int bottom = dropdownBottom();
+        drawRect(left, top, right, bottom, 0xFF6A472A);
+        drawRect(left + 2, top + 2, right - 2, bottom - 2, 0xF2DCC99E);
+        String title = openDropdown == DROPDOWN_MOD ? "\u9009\u62e9\u6a21\u7ec4" : "\u9009\u62e9\u5206\u7c7b";
+        drawCenteredString(fontRendererObj, title, (left + right) / 2, top + 7, 0x3B2617);
+
+        List<String> filters = dropdownFilters();
+        int first = dropdownPage * dropdownItemsPerPage();
+        int columnWidth = (right - left - 16) / 2;
+        for (int offset = 0; offset < dropdownItemsPerPage() && first + offset < filters.size(); offset++) {
+            int column = offset / dropdownRows();
+            int row = offset % dropdownRows();
+            int x = left + 8 + column * columnWidth;
+            int y = top + 23 + row * 18;
+            String value = filters.get(first + offset);
+            String selected = openDropdown == DROPDOWN_MOD ? selectedMod : selectedCategory;
+            boolean hovered = mouseX >= x && mouseX < x + columnWidth - 4 && mouseY >= y && mouseY < y + 16;
+            if (value.equals(selected)) drawRect(x, y, x + columnWidth - 4, y + 16, 0x886D4A2E);
+            else if (hovered) drawRect(x, y, x + columnWidth - 4, y + 16, 0x447B4C27);
+            String label = dropdownLabel(value);
+            fontRendererObj.drawString(
+                fontRendererObj.trimStringToWidth(label, columnWidth - 12), x + 5, y + 4, 0x3B2617);
+        }
+
+        int navY = bottom - 19;
+        if (dropdownPage > 0) fontRendererObj.drawString("< \u4e0a\u4e00\u9875", left + 10, navY, 0x4D301C);
+        String pages = (dropdownPage + 1) + "/" + dropdownPageCount();
+        drawCenteredString(fontRendererObj, pages, (left + right) / 2, navY, 0x6B5035);
+        if (dropdownPage + 1 < dropdownPageCount()) {
+            String next = "\u4e0b\u4e00\u9875 >";
+            fontRendererObj.drawString(next, right - 10 - fontRendererObj.getStringWidth(next), navY, 0x4D301C);
+        }
+    }
+
+    private void handleDropdownClick(int mouseX, int mouseY) {
+        int left = dropdownLeft();
+        int right = dropdownRight();
+        int top = dropdownTop();
+        int bottom = dropdownBottom();
+        if (mouseX < left || mouseX >= right || mouseY < top || mouseY >= bottom) {
+            openDropdown = DROPDOWN_NONE;
+            return;
+        }
+
+        int navY = bottom - 25;
+        if (mouseY >= navY) {
+            if (mouseX < (left + right) / 2 && dropdownPage > 0) dropdownPage--;
+            else if (mouseX >= (left + right) / 2 && dropdownPage + 1 < dropdownPageCount()) dropdownPage++;
+            return;
+        }
+
+        int columnWidth = (right - left - 16) / 2;
+        if (mouseY < top + 23) return;
+        if (mouseX < left + 8 || mouseX >= right - 8) return;
+        int column = (mouseX - left - 8) / columnWidth;
+        int row = (mouseY - top - 23) / 18;
+        if (column < 0 || column > 1 || row < 0 || row >= dropdownRows()) return;
+        int index = dropdownPage * dropdownItemsPerPage() + column * dropdownRows() + row;
+        List<String> filters = dropdownFilters();
+        if (index >= filters.size()) return;
+        if (openDropdown == DROPDOWN_MOD) {
+            selectedMod = filters.get(index);
+            modButton.displayString = modButtonText();
+        } else {
+            selectedCategory = filters.get(index);
+            categoryButton.displayString = categoryButtonText();
+        }
+        openDropdown = DROPDOWN_NONE;
+        resetAndFilter();
+    }
+
+    private String dropdownLabel(String value) {
+        if (value.isEmpty()) return "\u5168\u90e8";
+        String label = openDropdown == DROPDOWN_MOD ? modNames.get(value) : categoryName(value);
+        return label == null ? value : label;
+    }
+
+    private boolean isMouseOver(GuiButton button, int mouseX, int mouseY) {
+        return mouseX >= button.xPosition && mouseX < button.xPosition + button.width && mouseY >= button.yPosition
+            && mouseY < button.yPosition + button.height;
     }
 
     private static final class BookButton extends GuiButton {
