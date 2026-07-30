@@ -6,7 +6,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.Container;
-import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatComponentText;
 import thaumcraft.api.IScribeTools;
@@ -18,10 +17,11 @@ import thaumcraft.common.lib.research.ResearchManager;
 import thaumcraft.common.lib.research.ResearchNoteData;
 
 public final class ResearchPlanController {
-    private enum Phase { IDLE, NEXT, SCRIBE_OUT, NOTE, SCRIBE_BACK, INSERT, SOLVE, NOTE_OUT, HOTBAR, READ, RESTORE, DIRECT }
+    private enum Phase { IDLE, NEXT, CLEAR_TABLE, SCRIBE_OUT, NOTE, SCRIBE_BACK, INSERT, SOLVE, NOTE_OUT, HOTBAR, READ, RESTORE, DIRECT }
 
     private static final int SCRIBE_SLOT = 0, NOTE_SLOT = 1, FIRST_PLAYER_SLOT = 2;
-    private static final long SYNC_TIMEOUT = 5000L, SOLVE_TIMEOUT = 45000L;
+    private static final long SYNC_TIMEOUT = 5000L, READ_TIMEOUT = 10000L, SOLVE_TIMEOUT = 45000L;
+    private static final long HOTBAR_SYNC_DELAY = 350L;
     private static boolean running;
     private static Phase phase = Phase.IDLE;
     private static List<ResearchItem> plan;
@@ -35,7 +35,14 @@ public final class ResearchPlanController {
 
     public static boolean start(Minecraft mc, EntityPlayer player, Container container, String targetKey) {
         if (mc == null || player == null || container == null || container.inventorySlots.size() <= NOTE_SLOT) return false;
-        if (player.inventory.getItemStack() != null) return reject(player, "\u9f20\u6807\u6307\u9488\u4e0a\u6709\u7269\u54c1");
+        if (player.inventory.getItemStack() != null) {
+            if (!isResearchNote(player.inventory.getItemStack()))
+                return reject(player, "\u9f20\u6807\u6307\u9488\u4e0a\u6709\u7269\u54c1");
+            int recoverySlot = findEmpty(container);
+            if (recoverySlot < 0)
+                return reject(player, "\u80cc\u5305\u6ca1\u6709\u7a7a\u4f4d\u653e\u4e0b\u9f20\u6807\u4e0a\u7684\u7b14\u8bb0");
+            click(mc, player, container, recoverySlot);
+        }
         ResearchPlan result = ResearchPlan.build(player.getCommandSenderName(), targetKey);
         if (!result.blockers.isEmpty()) return reject(player, "\u9700\u5148\u624b\u52a8\u89e6\u53d1 " + result.blockers.get(0));
         if (result.steps.isEmpty()) return reject(player, "\u76ee\u6807\u7814\u7a76\u5df2\u5b8c\u6210");
@@ -62,6 +69,11 @@ public final class ResearchPlanController {
         lastTickAt = now;
         switch (phase) {
             case NEXT: beginNext(mc, player, container, now); break;
+            case CLEAR_TABLE:
+                if (!container.getSlot(NOTE_SLOT).getHasStack()) change(Phase.NEXT, now);
+                else if (expired(now, SYNC_TIMEOUT))
+                    fail(player, "\u65e0\u6cd5\u53d6\u56de\u7814\u7a76\u53f0\u4e2d\u6b8b\u7559\u7684\u5df2\u5b8c\u6210\u7b14\u8bb0");
+                break;
             case SCRIBE_OUT:
                 if (hasScribe(player)) request(player, now);
                 else if (expired(now, SYNC_TIMEOUT)) fail(player, "\u65e0\u6cd5\u5c06\u7b14\u4e0e\u58a8\u79fb\u5165\u80cc\u5305");
@@ -87,19 +99,25 @@ public final class ResearchPlanController {
                 else if (expired(now, SOLVE_TIMEOUT)) fail(player, "\u89e3\u9898\u8d85\u8fc7 45 \u79d2\uff0c\u8bf7\u68c0\u67e5\u8981\u7d20\u5e93\u5b58\u548c\u8c03\u8bd5\u4fe1\u606f");
                 break;
             case NOTE_OUT:
-                if (matchingComplete(container.getSlot(tempSlot).getStack())) prepareRead(mc, player, container, now);
+                int completedNoteSlot = findCompleteNote(container, currentKey);
+                if (completedNoteSlot >= 0) {
+                    tempSlot = completedNoteSlot;
+                    prepareRead(mc, player, container, now);
+                }
                 else if (expired(now, SYNC_TIMEOUT)) fail(player, "\u65e0\u6cd5\u53d6\u56de\u5df2\u5b8c\u6210\u7b14\u8bb0");
                 break;
             case HOTBAR:
-                if (matchingComplete(player.inventory.getCurrentItem())) use(mc, player, now);
+                if (matchingComplete(player.inventory.getCurrentItem()) && now - phaseStartedAt >= HOTBAR_SYNC_DELAY)
+                    use(mc, player, now);
                 else if (expired(now, SYNC_TIMEOUT)) fail(player, "\u65e0\u6cd5\u5c06\u7b14\u8bb0\u79fb\u5230\u5feb\u6377\u680f");
                 break;
             case READ:
                 if (ResearchManager.isResearchComplete(player.getCommandSenderName(), currentKey)) restoreOrAdvance(mc, player, container, now);
-                else if (expired(now, SYNC_TIMEOUT)) fail(player, "\u670d\u52a1\u5668\u672a\u786e\u8ba4\u7814\u7a76\u5b8c\u6210");
+                else if (expired(now, READ_TIMEOUT)) fail(player, "\u670d\u52a1\u5668\u672a\u786e\u8ba4\u7814\u7a76\u5b8c\u6210");
                 break;
             case RESTORE:
-                if (!matchingComplete(player.inventory.getCurrentItem())) advance(now);
+                if (!matchingComplete(player.inventory.getCurrentItem()) && player.inventory.getItemStack() == null)
+                    advance(now);
                 else if (expired(now, SYNC_TIMEOUT)) fail(player, "\u65e0\u6cd5\u6062\u590d\u5feb\u6377\u680f\u7269\u54c1");
                 break;
             case DIRECT:
@@ -116,6 +134,17 @@ public final class ResearchPlanController {
     public static void stopOnClose() { stop(null, "", false); }
 
     private static void beginNext(Minecraft mc, EntityPlayer player, Container container, long now) {
+        ResearchNoteData staleTableNote = data(container.getSlot(NOTE_SLOT).getStack());
+        if (staleTableNote != null && staleTableNote.complete
+            && ResearchManager.isResearchComplete(player.getCommandSenderName(), staleTableNote.key)) {
+            if (findEmpty(container) < 0) {
+                fail(player, "\u80cc包没有空位取回研究台中残留的笔记");
+                return;
+            }
+            mc.playerController.windowClick(container.windowId, NOTE_SLOT, 0, 1, player);
+            change(Phase.CLEAR_TABLE, now);
+            return;
+        }
         while (index < plan.size() && ResearchManager.isResearchComplete(player.getCommandSenderName(), plan.get(index).key)) { index++; completed++; }
         if (index >= plan.size()) { finish(player); return; }
         ResearchItem item = plan.get(index);
@@ -126,7 +155,20 @@ public final class ResearchPlanController {
         ItemStack tableStack = container.getSlot(NOTE_SLOT).getStack();
         if (tableStack != null) {
             ResearchNoteData tableData = data(tableStack);
-            if (tableData == null || !currentKey.equals(tableData.key)) { fail(player, "\u8bf7\u5148\u53d6\u8d70\u7814\u7a76\u53f0\u4e2d\u7684\u5176\u4ed6\u7b14\u8bb0"); return; }
+            if (tableData == null) { fail(player, "\u8bf7\u5148\u53d6\u8d70\u7814\u7a76\u53f0\u4e2d\u7684\u5176\u4ed6\u7269\u54c1"); return; }
+            if (!currentKey.equals(tableData.key)) {
+                if (!tableData.complete) {
+                    fail(player, "\u8bf7\u5148\u53d6\u8d70\u7814\u7a76\u53f0\u4e2d\u7684\u5176\u4ed6\u672a\u5b8c\u6210\u7b14\u8bb0");
+                    return;
+                }
+                if (findEmpty(container) < 0) {
+                    fail(player, "\u80cc\u5305\u6ca1\u6709\u7a7a\u4f4d\u53d6\u56de\u7814\u7a76\u53f0\u4e2d\u7684\u7b14\u8bb0");
+                    return;
+                }
+                mc.playerController.windowClick(container.windowId, NOTE_SLOT, 0, 1, player);
+                change(Phase.CLEAR_TABLE, now);
+                return;
+            }
             change(Phase.SOLVE, now); return;
         }
         noteSlot = findNote(container, currentKey);
@@ -155,25 +197,37 @@ public final class ResearchPlanController {
         mc.playerController.windowClick(container.windowId, noteSlot, 0, 1, player); change(Phase.INSERT, now);
     }
     private static void takeNote(Minecraft mc, EntityPlayer player, Container container, long now) {
-        tempSlot = findEmpty(container);
-        if (tempSlot < 0) { fail(player, "\u80cc\u5305\u6ca1\u6709\u7a7a\u4f4d\u53d6\u56de\u7b14\u8bb0"); return; }
-        click(mc, player, container, NOTE_SLOT); click(mc, player, container, tempSlot); change(Phase.NOTE_OUT, now);
+        if (findEmpty(container) < 0) { fail(player, "\u80cc\u5305\u6ca1\u6709\u7a7a\u4f4d\u53d6\u56de\u7b14\u8bb0"); return; }
+        mc.playerController.windowClick(container.windowId, NOTE_SLOT, 0, 1, player);
+        change(Phase.NOTE_OUT, now);
     }
     private static void prepareRead(Minecraft mc, EntityPlayer player, Container container, long now) {
         originalHotbar = player.inventory.currentItem;
         int inventoryIndex = container.getSlot(tempSlot).getSlotIndex();
-        if (inventoryIndex == originalHotbar) { hotbarSwapped = false; use(mc, player, now); return; }
+        if (inventoryIndex == originalHotbar) { hotbarSwapped = false; change(Phase.HOTBAR, now); return; }
         hotbarSlot = findInventorySlot(container, originalHotbar);
         if (hotbarSlot < 0) { fail(player, "\u627e\u4e0d\u5230\u5f53\u524d\u5feb\u6377\u680f\u69fd\u4f4d"); return; }
-        click(mc, player, container, tempSlot); click(mc, player, container, hotbarSlot); click(mc, player, container, tempSlot);
-        hotbarSwapped = true; change(Phase.HOTBAR, now);
+        hotbarSwap(mc, player, container, tempSlot, originalHotbar);
+        hotbarSwapped = true;
+        change(Phase.HOTBAR, now);
     }
     private static void use(Minecraft mc, EntityPlayer player, long now) {
         mc.playerController.sendUseItem(player, player.worldObj, player.inventory.getCurrentItem()); change(Phase.READ, now);
     }
     private static void restoreOrAdvance(Minecraft mc, EntityPlayer player, Container container, long now) {
-        if (!hotbarSwapped) { player.inventory.currentItem = originalHotbar; advance(now); return; }
-        if (container.getSlot(tempSlot).getHasStack()) { click(mc, player, container, tempSlot); click(mc, player, container, hotbarSlot); }
+        if (!hotbarSwapped) {
+            if (!matchingComplete(player.inventory.getCurrentItem())) advance(now);
+            else {
+                int emptySlot = findEmpty(container);
+                if (emptySlot < 0) advance(now);
+                else {
+                    hotbarSwap(mc, player, container, emptySlot, originalHotbar);
+                    change(Phase.RESTORE, now);
+                }
+            }
+            return;
+        }
+        hotbarSwap(mc, player, container, tempSlot, originalHotbar);
         change(Phase.RESTORE, now);
     }
     private static void advance(long now) { completed++; index++; currentKey = null; resetSlots(); change(Phase.NEXT, now); }
@@ -185,14 +239,25 @@ public final class ResearchPlanController {
         for (int i = FIRST_PLAYER_SLOT; i < c.inventorySlots.size(); i++) { ResearchNoteData d = data(c.getSlot(i).getStack()); if (d != null && key.equals(d.key)) return i; }
         return -1;
     }
+    private static int findCompleteNote(Container c, String key) {
+        for (int i = FIRST_PLAYER_SLOT; i < c.inventorySlots.size(); i++) {
+            ResearchNoteData d = data(c.getSlot(i).getStack());
+            if (d != null && d.complete && key.equals(d.key)) return i;
+        }
+        return -1;
+    }
     private static int findEmpty(Container c) { for (int i = FIRST_PLAYER_SLOT; i < c.inventorySlots.size(); i++) if (!c.getSlot(i).getHasStack()) return i; return -1; }
     private static int findInventorySlot(Container c, int index) { for (int i = FIRST_PLAYER_SLOT; i < c.inventorySlots.size(); i++) if (c.getSlot(i).getSlotIndex() == index) return i; return -1; }
     private static boolean hasScribe(EntityPlayer p) { for (ItemStack s : p.inventory.mainInventory) if (isScribe(s)) return true; return false; }
     private static boolean isScribe(ItemStack s) { return s != null && s.getItem() instanceof IScribeTools && s.getItemDamage() < s.getMaxDamage(); }
     private static boolean hasPaper(EntityPlayer p) { for (ItemStack s : p.inventory.mainInventory) if (s != null && s.getItem() == Items.paper) return true; return false; }
+    private static boolean isResearchNote(ItemStack s) { return s != null && s.getItem() instanceof ItemResearchNotes; }
     private static ResearchNoteData data(ItemStack s) { if (s == null || !(s.getItem() instanceof ItemResearchNotes)) return null; try { return ResearchManager.getData(s); } catch (RuntimeException ignored) { return null; } }
     private static boolean matchingComplete(ItemStack s) { ResearchNoteData d = data(s); return d != null && d.complete && currentKey.equals(d.key); }
     private static void click(Minecraft mc, EntityPlayer p, Container c, int slot) { mc.playerController.windowClick(c.windowId, slot, 0, 0, p); }
+    private static void hotbarSwap(Minecraft mc, EntityPlayer p, Container c, int slot, int hotbarIndex) {
+        mc.playerController.windowClick(c.windowId, slot, hotbarIndex, 2, p);
+    }
     private static boolean expired(long now, long timeout) { return now - phaseStartedAt > timeout; }
     private static void change(Phase next, long now) { phase = next; phaseStartedAt = now; }
     private static void resetSlots() { scribeSlot = noteSlot = tempSlot = hotbarSlot = originalHotbar = -1; hotbarSwapped = false; }
