@@ -84,12 +84,12 @@ public class GuiResearchList extends GuiScreen {
         calculateBookBounds();
         rowsPerColumn = Math.max(3, Math.min(7, (bookHeight - 150) / ROW_HEIGHT));
 
-        searchField = new GuiTextField(fontRendererObj, width / 2 - 92, bookTop + 31, 184, 16);
+        int half = bookWidth / 2;
+        searchField = new GuiTextField(fontRendererObj, bookLeft + 72, bookTop + 31, half - 108, 16);
         searchField.setMaxStringLength(80);
         searchField.setEnableBackgroundDrawing(false);
         searchField.setTextColor(0x3C2515);
 
-        int half = bookWidth / 2;
         int filterWidth = Math.min(174, half - 72);
         int navWidth = Math.max(50, Math.min(68, half / 3));
         int commandWidth = Math.max(58, half - navWidth - 42);
@@ -193,15 +193,20 @@ public class GuiResearchList extends GuiScreen {
         drawDefaultBackground();
         drawBookBackground();
         int center = width / 2;
+        int half = bookWidth / 2;
+        int leftPageCenter = bookLeft + half / 2;
+        int rightPageCenter = bookLeft + half + half / 2;
         drawCenteredString(fontRendererObj, "\u7814\u7a76\u5217\u8868", center, bookTop + 14, 0x3A2415);
-        fontRendererObj.drawString("\u641c\u7d22", center - 124, bookTop + 35, 0x5B4028);
-        drawRect(center - 96, bookTop + 29, center + 96, bookTop + 49, 0x55382416);
-        drawRect(center - 96, bookTop + 48, center + 96, bookTop + 49, 0x885B3B23);
+        fontRendererObj.drawString("\u641c\u7d22", bookLeft + 36, bookTop + 35, 0x5B4028);
+        drawRect(bookLeft + 68, bookTop + 29, bookLeft + half - 32, bookTop + 49, 0x55382416);
+        drawRect(bookLeft + 68, bookTop + 48, bookLeft + half - 32, bookTop + 49, 0x885B3B23);
         searchField.drawTextBox();
 
-        int from = page * itemsPerPage();
-        int to = Math.min(from + itemsPerPage(), filtered.size());
-        for (int i = from; i < to; i++) drawResearchEntry(filtered.get(i), i - from);
+        if (openDropdown == DROPDOWN_NONE) {
+            int from = page * itemsPerPage();
+            int to = Math.min(from + itemsPerPage(), filtered.size());
+            for (int i = from; i < to; i++) drawResearchEntry(filtered.get(i), i - from);
+        }
 
         ResearchPlan selectedPlan = selectedKey == null ? null : ResearchPlan.build(player.getCommandSenderName(), selectedKey);
         String status = "\u8bf7\u9009\u62e9\u76ee\u6807\u7814\u7a76";
@@ -214,16 +219,18 @@ public class GuiResearchList extends GuiScreen {
         }
         drawCenteredString(
             fontRendererObj,
-            fontRendererObj.trimStringToWidth(status, bookWidth - 54),
-            center,
+            fontRendererObj.trimStringToWidth(status, half - 72),
+            rightPageCenter,
             bookTop + bookHeight - 44,
             canStart ? 0x5C4A16 : 0x9A3028);
-        drawCenteredString(
-            fontRendererObj,
-            (page + 1) + "/" + pageCount() + " \u00b7 " + filtered.size(),
-            center,
-            bookTop + 74,
-            0x6B5035);
+        if (openDropdown == DROPDOWN_NONE) {
+            drawCenteredString(
+                fontRendererObj,
+                (page + 1) + "/" + pageCount() + " \u00b7 " + filtered.size(),
+                leftPageCenter,
+                bookTop + 74,
+                0x6B5035);
+        }
         ((GuiButton) buttonList.get(0)).enabled = canStart;
         ((GuiButton) buttonList.get(2)).enabled = page > 0;
         ((GuiButton) buttonList.get(3)).enabled = page + 1 < pageCount();
