@@ -21,11 +21,13 @@ public final class ResearchPlanController {
 
     private static final int SCRIBE_SLOT = 0, NOTE_SLOT = 1, FIRST_PLAYER_SLOT = 2;
     private static final long SYNC_TIMEOUT = 5000L, READ_TIMEOUT = 10000L, SOLVE_TIMEOUT = 45000L;
-    private static final long HOTBAR_SYNC_DELAY = 350L;
+    private static final long HOTBAR_SYNC_DELAY = 350L, READ_RETRY_DELAY = 1500L;
+    private static final int MAX_READ_ATTEMPTS = 3;
     private static boolean running;
     private static Phase phase = Phase.IDLE;
     private static List<ResearchItem> plan;
     private static int index, completed, windowId = -1;
+    private static int readAttempts;
     private static String currentKey;
     private static long phaseStartedAt, lastTickAt;
     private static int scribeSlot = -1, noteSlot = -1, tempSlot = -1, hotbarSlot = -1, originalHotbar = -1;
@@ -113,10 +115,17 @@ public final class ResearchPlanController {
                 break;
             case READ:
                 if (ResearchManager.isResearchComplete(player.getCommandSenderName(), currentKey)) restoreOrAdvance(mc, player, container, now);
+                else if (matchingComplete(player.inventory.getCurrentItem())
+                    && readAttempts < MAX_READ_ATTEMPTS && now - phaseStartedAt >= READ_RETRY_DELAY)
+                    use(mc, player, now);
                 else if (expired(now, READ_TIMEOUT)) fail(player, "\u670d\u52a1\u5668\u672a\u786e\u8ba4\u7814\u7a76\u5b8c\u6210");
                 break;
             case RESTORE:
                 if (!matchingComplete(player.inventory.getCurrentItem()) && player.inventory.getItemStack() == null)
+                    advance(now);
+                else if (ResearchManager.isResearchComplete(player.getCommandSenderName(), currentKey)
+                    && tempSlot >= 0 && !container.getSlot(tempSlot).getHasStack()
+                    && player.inventory.getItemStack() == null)
                     advance(now);
                 else if (expired(now, SYNC_TIMEOUT)) fail(player, "\u65e0\u6cd5\u6062\u590d\u5feb\u6377\u680f\u7269\u54c1");
                 break;
@@ -212,6 +221,7 @@ public final class ResearchPlanController {
         change(Phase.HOTBAR, now);
     }
     private static void use(Minecraft mc, EntityPlayer player, long now) {
+        readAttempts++;
         mc.playerController.sendUseItem(player, player.worldObj, player.inventory.getCurrentItem()); change(Phase.READ, now);
     }
     private static void restoreOrAdvance(Minecraft mc, EntityPlayer player, Container container, long now) {
@@ -225,6 +235,10 @@ public final class ResearchPlanController {
                     change(Phase.RESTORE, now);
                 }
             }
+            return;
+        }
+        if (tempSlot >= 0 && !container.getSlot(tempSlot).getHasStack()) {
+            advance(now);
             return;
         }
         hotbarSwap(mc, player, container, tempSlot, originalHotbar);
@@ -260,7 +274,11 @@ public final class ResearchPlanController {
     }
     private static boolean expired(long now, long timeout) { return now - phaseStartedAt > timeout; }
     private static void change(Phase next, long now) { phase = next; phaseStartedAt = now; }
-    private static void resetSlots() { scribeSlot = noteSlot = tempSlot = hotbarSlot = originalHotbar = -1; hotbarSwapped = false; }
+    private static void resetSlots() {
+        scribeSlot = noteSlot = tempSlot = hotbarSlot = originalHotbar = -1;
+        readAttempts = 0;
+        hotbarSwapped = false;
+    }
     private static boolean reject(EntityPlayer p, String reason) { notify(p, "\u65e0\u6cd5\u5f00\u59cb\uff1a" + reason); return false; }
     private static void fail(EntityPlayer p, String reason) { stop(p, reason, true); }
     private static void finish(EntityPlayer p) { int count = completed; stop(null, "", false); notify(p, "\u76ee\u6807\u7814\u7a76\u5df2\u5b8c\u6210\uff0c\u5171\u5904\u7406 " + count + " \u9879"); }
