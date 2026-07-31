@@ -338,10 +338,7 @@ public class GuiResearchList extends GuiScreen {
             String mod = modName(item);
             if (!selectedMod.isEmpty() && !selectedMod.equals(researchModIds.get(item.key))) continue;
             if (!selectedCategory.isEmpty() && !selectedCategory.equals(item.category)) continue;
-            if (query.isEmpty() || item.key.toLowerCase(Locale.ROOT).contains(query)
-                || item.getName().toLowerCase(Locale.ROOT).contains(query)
-                || category.toLowerCase(Locale.ROOT).contains(query)
-                || mod.toLowerCase(Locale.ROOT).contains(query)) filtered.add(item);
+            if (PinyinSearch.matches(query, item.key, item.getName(), category, mod)) filtered.add(item);
         }
         if (page >= pageCount()) page = pageCount() - 1;
     }

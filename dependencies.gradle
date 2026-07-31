@@ -36,6 +36,7 @@
 dependencies {
     //runtimeOnlyNonPublishable("com.github.GTNewHorizons:NotEnoughItems:2.7.58-GTNH:dev")
     implementation("thaumcraft:Thaumcraft:1.7.10-4.2.3.5:dev")
+    shadowImplementation("com.belerweb:pinyin4j:2.5.1")
     //runtimeOnly("com.github.GTNewHorizons:thaumcraft-research-tweaks:1.3.0:dev")
     runtimeOnly("com.github.GTNewHorizons:Baubles-Expanded:2.2.21-GTNH:dev")
 }
