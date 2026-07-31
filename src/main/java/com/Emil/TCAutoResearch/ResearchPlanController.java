@@ -44,7 +44,7 @@ public final class ResearchPlanController {
             click(mc, player, container, recoverySlot);
         }
         ResearchPlan result = ResearchPlan.build(player.getCommandSenderName(), targetKey);
-        if (!result.blockers.isEmpty()) return reject(player, "\u9700\u5148\u624b\u52a8\u89e6\u53d1 " + result.blockers.get(0));
+        if (!result.blockers.isEmpty()) return reject(player, "\u9700\u8981\u624b\u52a8\u626b\u63cf\uff1a" + result.blockers.get(0));
         if (result.steps.isEmpty()) return reject(player, "\u76ee\u6807\u7814\u7a76\u5df2\u5b8c\u6210");
         BatchResearchController.stopOnClose();
         plan = result.steps;

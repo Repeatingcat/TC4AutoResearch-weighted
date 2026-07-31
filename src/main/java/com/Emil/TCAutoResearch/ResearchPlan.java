@@ -6,6 +6,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.StatCollector;
+import net.minecraftforge.oredict.OreDictionary;
+import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.research.ResearchCategories;
 import thaumcraft.api.research.ResearchItem;
 import thaumcraft.common.lib.research.ResearchManager;
@@ -50,7 +54,7 @@ public final class ResearchPlan {
         visiting.remove(key);
 
         if (isExternalUnlock(item)) {
-            blockers.add(item.getName());
+            blockers.add(scanTargetName(item));
             return;
         }
         if (item.tags == null || item.tags.size() == 0) {
@@ -73,5 +77,39 @@ public final class ResearchPlan {
 
     private static boolean isExternalUnlock(ResearchItem item) {
         return item.isAutoUnlock() || item.isVirtual() || item.isStub() || item.isHidden() || item.isLost();
+    }
+
+    private static String scanTargetName(ResearchItem item) {
+        LinkedHashSet<String> targets = new LinkedHashSet<>();
+        ItemStack[] itemTriggers = item.getItemTriggers();
+        if (itemTriggers != null) {
+            for (ItemStack trigger : itemTriggers) {
+                if (trigger == null || trigger.getItem() == null) continue;
+                ItemStack display = trigger.copy();
+                if (display.getItemDamage() == OreDictionary.WILDCARD_VALUE) display.setItemDamage(0);
+                targets.add(display.getDisplayName());
+            }
+        }
+        String[] entityTriggers = item.getEntityTriggers();
+        if (entityTriggers != null) {
+            for (String trigger : entityTriggers) {
+                if (trigger == null || trigger.isEmpty()) continue;
+                String translated = StatCollector.translateToLocal("entity." + trigger + ".name");
+                targets.add(translated.equals("entity." + trigger + ".name") ? trigger : translated);
+            }
+        }
+        Aspect[] aspectTriggers = item.getAspectTriggers();
+        if (aspectTriggers != null) {
+            for (Aspect trigger : aspectTriggers) {
+                if (trigger != null) targets.add(trigger.getName());
+            }
+        }
+        if (targets.isEmpty()) return item.getName();
+        StringBuilder result = new StringBuilder();
+        for (String target : targets) {
+            if (result.length() > 0) result.append(" / ");
+            result.append(target);
+        }
+        return result.toString();
     }
 }

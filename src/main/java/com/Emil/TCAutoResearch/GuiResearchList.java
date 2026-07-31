@@ -215,7 +215,7 @@ public class GuiResearchList extends GuiScreen {
             if (selectedPlan.blockers.isEmpty()) {
                 status = "\u5c06\u6309\u4f9d\u8d56\u987a\u5e8f\u5904\u7406 " + selectedPlan.steps.size() + " \u9879\u7814\u7a76";
                 canStart = !selectedPlan.steps.isEmpty();
-            } else status = "\u9700\u5148\u624b\u52a8\u89e6\u53d1: " + selectedPlan.blockers.get(0);
+            } else status = "\u9700\u8981\u624b\u52a8\u626b\u63cf\uff1a" + selectedPlan.blockers.get(0);
         }
         drawCenteredString(
             fontRendererObj,
